@@ -137,7 +137,11 @@ vitrina-digital/
 ├── ar.html             ← la experiencia AR (model-viewer)
 ├── placa.html          ← diseño imprimible de la placa (NFC + QR automático)
 ├── data/
-│   └── proyectos.json  ← ★ TODO EL CONTENIDO. Lo único que edita el docente (H4)
+│   └── proyectos.json  ← contenido de respaldo (Plan B) y semilla de Supabase
+├── supabase/
+│   ├── CONFIGURAR.md   ← ★ guía paso a paso de Supabase (proyecto, claves, SQL, admin, URLs)
+│   ├── 01-esquema.sql  ← tablas, seguridad (RLS) y buckets
+│   └── 02-semilla.sql  ← los 6 proyectos actuales (se genera con herramientas/supabase/semilla.mjs)
 ├── modelos/
 │   ├── casa-moderna.glb        ← maqueta 1:25 optimizada (947 KB, ver sección 7)
 │   ├── oficina.glb, london.glb, deliveryrush.glb, cafeteria.glb  ← proyectos de la Ronda 3 (sección 7b)
@@ -148,14 +152,16 @@ vitrina-digital/
 │   └── cuentos-y-espias.es.vtt ← letra con tiempos (subtítulos)
 ├── herramientas/       ← no es parte del recorrido:
 │   ├── pantalla-glb.js       generador del .glb de la pantalla de cine
-│   └── maqueta/              optimizar.mjs, preparar.mjs (recetas por proyecto), imagenes.mjs (planos y GDD a WebP)
+│   ├── maqueta/              optimizar.mjs, preparar.mjs (recetas por proyecto), imagenes.mjs (planos y GDD a WebP)
+│   └── supabase/semilla.mjs  convierte data/proyectos.json en supabase/02-semilla.sql
 ├── img/                ← portadas (<id>-render.webp) y una carpeta por proyecto con sus planos o su GDD
 ├── css/
 │   ├── estilos.css     ← estilos generales (colores Ecotec)
 │   └── ar.css          ← estilos de la página AR
 └── js/
-    ├── datos.js        ← lee el JSON (compartido)
-    ├── config.js       ← URL_PUBLICA (GitHub Pages) y URL de la placa
+    ├── datos.js        ← lee los proyectos de Supabase; si no responde, Plan B (copia local o el JSON)
+    ├── config.js       ← URL_PUBLICA (GitHub Pages), URL de la placa y dirección + clave pública de Supabase
+    ├── navegador.js    ← detecta navegadores sin AR (Brave, Firefox, WhatsApp…) y ofrece «Abrir en Chrome»
     ├── carrusel.js     ← carrusel de proyectos del hero
     ├── ar.js           ← lógica de la AR: modelo, puntos, guía, asistente
     ├── ar-propia.js    ← «Ver en mi espacio» de la maqueta con three.js + WebXR (gestos, botones, tutorial)
@@ -363,6 +369,9 @@ Las descripciones, los puntos y el asistente de los 4 proyectos nuevos los redac
 ### Pruebas automáticas (carpeta `pruebas/`)
 - `npm test` corre `proyectos.test.mjs` (ficha y AR propia de los 4 proyectos nuevos, «3 proyectos» por carrera y carrusel de 6), `qr.test.mjs` (el QR, ver abajo), `maqueta.test.mjs` (adelanto, QR de la maqueta, AR propia en modo de prueba, ficha y visor de planos), `video-modos.test.mjs` (Televisor → Sin televisor → 360° → salir, sin que el video se reinicie, en monitor y celular) y `carrusel.test.mjs`. Este último comprueba que el carrusel avance solo a los 8 s, que los puntos cambien de proyecto, que se pause con el mouse, que con *reducir movimiento* no avance, que el televisor muestre el póster y (Ronda 4) que **se gire con el dedo** (con eventos táctiles reales: el arrastre horizontal gira y pausa, retoma 4 s después de soltar y el vertical mueve la página) y que en monitor el visor ocupe todo el ancho detrás de los títulos. `proyectos.test.mjs` también revisa (Ronda 4) los datos confirmados y, en los 5 modelos, el near de 1 cm y el pellizco hasta ×8.
 - `node rendimiento.mjs todos --sw` mide la AR propia de los 5 modelos (ver «Fluidez de los 6 modelos»).
+- `navegador.test.mjs` (Fase 5) simula Android con Brave, Instagram y Chrome sin AR: aviso «Ábrelo en Chrome», enlace `intent://` y evento `navegador_no_compatible`.
+- `datos-supabase.test.mjs` (Fase 5) finge un Supabase que responde, que está caído y que tarda: el sitio usa Supabase o el Plan B sin quedar en blanco.
+- `node seguridad-supabase.mjs` (con las claves ya en `config.js`) prueba la seguridad **del Supabase real** con la clave pública.
 - `resolucion.test.mjs` simula FPS altos, bajos y con tope de cámara, y revisa la resolución dinámica.
 - `node capturas.mjs` recorre todas las páginas en **390 px y 1440 px**: revisa que no haya errores en la consola ni scroll horizontal y guarda capturas en `pruebas/capturas/` (no se suben al repositorio).
 
@@ -438,3 +447,19 @@ La página de la carrera, las tarjetas («3 PROYECTOS»), el carrusel del inicio
 
 - [model-viewer](https://modelviewer.dev) (Google, licencia Apache 2.0)
 - Tipografía Poppins (Google Fonts)
+
+## Fase 5 · Navegadores sin AR y Supabase
+
+### Navegadores sin AR (parte 0) — `js/navegador.js`
+La AR en el navegador solo existe en **Chrome de Android** (y algunos parecidos). En Android, si el navegador no la tiene (Brave, Firefox, los navegadores internos de WhatsApp, Instagram y Facebook):
+- **Maquetas y escenarios:** «Ver en mi espacio» prueba primero **Scene Viewer** (la app de AR de Google). Si en 3 s no se abrió, aparece el aviso *«Tu navegador no permite realidad aumentada. Ábrelo en Chrome para verla en tu espacio»* con **Abrir en Chrome** (un enlace `intent://…;package=com.android.chrome;end` que abre la misma página en Chrome; si no lo tiene, Android ofrece instalarlo), **Copiar enlace** y **Seguir en 3D**. En los navegadores internos de las apps el aviso sale directo (ahí Scene Viewer deja una página de error).
+- **Video:** el aviso aparece al cargar, con «Ver el video aquí» (pantalla completa con la letra, como en iPhone).
+- **Chrome en un celular sin AR** (sin «Servicios de Google Play para RA»): el aviso dice que es el celular, y no ofrece «Abrir en Chrome».
+- Se registra el evento `navegador_no_compatible` con el nombre del navegador. iPhone y computadora no cambian.
+
+### Supabase y Plan B (parte 1)
+Guía completa: **`supabase/CONFIGURAR.md`**. Resumen:
+- **Tablas:** `administradores`, `ajustes` (periodo, arPropia), `carreras`, `proyectos`, `eventos`. Cada proyecto guarda sus datos en una columna `datos` (jsonb) con **la misma forma** que `data/proyectos.json`: así el sitio no cambia, se pueden crear proyectos de cualquier tipo con campos nuevos sin tocar la base, y el Plan B es el mismo archivo.
+- **Seguridad (RLS):** con la clave pública solo se leen los proyectos publicados y se registran eventos. Editar, subir archivos, ver métricas y ver proyectos ocultos: solo correos de la tabla `administradores`.
+- **Plan B:** `js/datos.js` espera a Supabase hasta 4 s. Si no responde (sin internet, pausado, caído), usa la **última copia buena** guardada en el navegador y, si no hay, `data/proyectos.json`. La vitrina nunca queda en blanco.
+- Si cambias `data/proyectos.json`, regenera la semilla: `node herramientas/supabase/semilla.mjs`.

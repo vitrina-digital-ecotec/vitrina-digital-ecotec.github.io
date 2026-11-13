@@ -1,17 +1,73 @@
 // =========================================================
 // datos.js — funciones compartidas por todas las páginas.
-// Lee data/proyectos.json (el contenido que edita el docente).
+//
+// De dónde salen los proyectos (en este orden):
+//   1. Supabase: lo que el docente edita en el panel /admin/.
+//   2. Plan B si Supabase no responde (sin internet, pausado, caído):
+//      a) la última copia buena que este navegador guardó de Supabase;
+//      b) data/proyectos.json, que viene con el sitio. La vitrina nunca queda en blanco.
+// Las tres fuentes tienen la MISMA forma, así que el resto del sitio no se entera.
 // =========================================================
+import { SUPABASE_URL, SUPABASE_CLAVE_PUBLICA } from './config.js';
 
 let cache = null;
+const COPIA_LOCAL = 'vitrina-datos';
+const ESPERA_MAXIMA = 4000;     // ms: si Supabase tarda más, se usa el Plan B
 
-/** Descarga el JSON una sola vez y lo guarda en memoria. */
+/** Descarga los datos una sola vez y los guarda en memoria. */
 export async function cargarDatos() {
   if (cache) return cache;
+  cache = await desdeSupabase().catch((e) => { console.warn('Supabase no respondió; se usa el Plan B.', e); return null; })
+    ?? copiaLocal()
+    ?? await desdeJSON();
+  return cache;
+}
+
+async function desdeJSON() {
   const respuesta = await fetch('data/proyectos.json', { cache: 'no-cache' });
   if (!respuesta.ok) throw new Error('No se pudo leer data/proyectos.json');
-  cache = await respuesta.json();
-  return cache;
+  return { ...(await respuesta.json()), _origen: 'json' };
+}
+
+/** Lee ajustes, carreras y proyectos publicados con la API REST de Supabase (sin librerías: es más liviano). */
+async function desdeSupabase() {
+  if (!SUPABASE_URL || !SUPABASE_CLAVE_PUBLICA) return null;
+  const control = new AbortController();
+  const reloj = setTimeout(() => control.abort(), ESPERA_MAXIMA);
+  const encabezados = { apikey: SUPABASE_CLAVE_PUBLICA };
+  // La clave antigua («anon», empieza con eyJ) también va como token; la nueva (sb_publishable_…) no.
+  if (SUPABASE_CLAVE_PUBLICA.startsWith('eyJ')) encabezados.Authorization = `Bearer ${SUPABASE_CLAVE_PUBLICA}`;
+  const pedir = async (ruta) => {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${ruta}`, { headers: encabezados, signal: control.signal, cache: 'no-cache' });
+    if (!r.ok) throw new Error(`Supabase ${r.status} en ${ruta}`);
+    return r.json();
+  };
+  try {
+    const [ajustes, carreras, proyectos] = await Promise.all([
+      pedir('ajustes?select=clave,valor'),
+      pedir('carreras?select=id,orden,datos&publicado=eq.true&order=orden'),
+      pedir('proyectos?select=id,carrera,datos&publicado=eq.true&order=orden')
+    ]);
+    if (!proyectos.length) throw new Error('Supabase no tiene proyectos publicados');
+    const ajuste = Object.fromEntries(ajustes.map(a => [a.clave, a.valor]));
+    const datos = {
+      periodoActual: ajuste.periodoActual ?? '',
+      configuracion: ajuste.configuracion ?? {},
+      carreras: carreras.map(c => ({ id: c.id, orden: c.orden, ...c.datos })),
+      proyectos: proyectos.map(p => ({ id: p.id, carrera: p.carrera, ...p.datos }))
+    };
+    try { localStorage.setItem(COPIA_LOCAL, JSON.stringify(datos)); } catch { /* sin espacio o bloqueado: no importa */ }
+    return { ...datos, _origen: 'supabase' };
+  } finally {
+    clearTimeout(reloj);
+  }
+}
+
+function copiaLocal() {
+  try {
+    const guardado = JSON.parse(localStorage.getItem(COPIA_LOCAL));
+    return guardado?.proyectos?.length ? { ...guardado, _origen: 'copia-local' } : null;
+  } catch { return null; }
 }
 
 /** Devuelve las carreras en el orden que eligió el docente (campo "orden"). */

@@ -10,6 +10,17 @@
 
 export const URL_PUBLICA = 'https://vitrina-digital-ecotec.github.io/';
 
+// =========================================================
+// Supabase (Fase 5): la base de datos que edita el panel /admin/.
+// SUPABASE_URL: «Project URL» (https://xxxx.supabase.co).
+// SUPABASE_CLAVE_PUBLICA: la clave PÚBLICA («Publishable key», sb_publishable_…, o la «anon public»).
+//   Es pública a propósito: solo permite leer lo publicado y registrar visitas (lo controla RLS).
+//   NUNCA pongas aquí la «secret key» ni la «service_role».
+// Si quedan vacías, el sitio usa data/proyectos.json (Plan B).
+// =========================================================
+export const SUPABASE_URL = '';
+export const SUPABASE_CLAVE_PUBLICA = '';
+
 /** Dirección que abre la placa. origen: 'qr' (el código impreso) o 'nfc' (el chip, más adelante). */
 export function urlDeLaPlaca(origen) {
   return `${URL_PUBLICA}index.html?src=${origen}`;
