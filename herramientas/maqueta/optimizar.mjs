@@ -58,12 +58,14 @@ const texto = (m) => `${m.triangulos} triángulos · ${m.llamadas} llamadas de d
  *   simplificarTodo   { ratio, error, planas } → todo el modelo (para la versión liviana del carrusel)
  *                     planas: true = sin normales (caras planas), para poder soldar y simplificar más
  *   maxTextura        lado máximo de las texturas (1024)
+ *   calidadTextura    calidad WebP de las fotos y texturas (82). Las paletas de colores siempre van SIN pérdida:
+ *                     son imágenes chiquitas de colores lisos y la compresión con pérdida mezcla los colores vecinos.
  *   soloColor         true = quita mapas de normales, rugosidad, oclusión y barniz (deja color y brillo propio)
  *   meshopt           true = compresión meshopt
  *   antes(doc)        función opcional para pasos propios (por ejemplo, cambiar texturas)
  */
 export async function optimizar(o) {
-  const { entrada, salida, escala = 1, quitar, simplificar, simplificarTodo, maxTextura = 1024, antes } = o;
+  const { entrada, salida, escala = 1, quitar, simplificar, simplificarTodo, maxTextura = 1024, calidadTextura = 82, antes } = o;
   const doc = await io.read(entrada);
   const raiz = doc.getRoot();
   const escena = raiz.getDefaultScene();
@@ -152,7 +154,7 @@ export async function optimizar(o) {
     const { width, height } = await sharp(img).metadata();
     const k = Math.min(1, maxTextura / Math.max(width, height));
     const webp = await sharp(img).resize(Math.max(1, Math.round(width * k)), Math.max(1, Math.round(height * k)), { fit: 'fill', kernel: 'lanczos3' })
-      .webp({ quality: 82, effort: 5 }).toBuffer();
+      .webp(/^Palette/.test(t.getName()) ? { lossless: true } : { quality: calidadTextura, effort: 5 }).toBuffer();
     t.setImage(new Uint8Array(webp)).setMimeType('image/webp');
     if (t.getURI()) t.setURI(t.getURI().replace(/\.\w+$/, '.webp'));
   }

@@ -221,6 +221,8 @@ export function crearARPropia({ proyecto, capa, compartidos = [], alTocarPunto, 
       alphaTest: m.alphaTest, depthWrite: m.depthWrite, vertexColors: m.vertexColors, side: THREE.FrontSide,
       flatShading: m.flatShading                    // piezas «low poly» guardadas sin normales
     });
+    // Filtro anisotrópico: las texturas vistas de costado (el piso de damero, las franjas) no se ven borrosas ni con rayas
+    if (b.map) b.map.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
     m.dispose();
     return b;
   }

@@ -10,6 +10,12 @@
 // =========================================================
 import { optimizar } from './optimizar.mjs';
 import { reemplazarTexturasCafeteria } from './texturas-cafeteria.mjs';
+import { limpiarCafeteria } from './limpiar-cafeteria.mjs';
+
+async function prepararCafeteria(doc) {
+  await reemplazarTexturasCafeteria(doc);
+  limpiarCafeteria(doc);
+}
 
 const MATERIAL = '../../../_material/3_proyectos/';
 const MODELOS = '../../modelos/';
@@ -26,13 +32,16 @@ const recetas = {
     meshopt: true,
     hero: { quitar: /^(CEILING_|GUIDE_|MK_|PROP_|DEC_|KEYPAD_|ARCH_Ceiling)/, simplificarTodo: { ratio: 0.5 }, maxTextura: 512 }
   },
-  // Cafetería M3D (Modelado 3D): las imágenes de internet se cambian por propias (ver texturas-cafeteria.mjs)
+  // Cafetería M3D (Modelado 3D): las imágenes de internet se cambian por propias (ver texturas-cafeteria.mjs).
+  // Ronda 5: antes se limpia la geometría (duplicados, caras de un solo lado, materiales: ver limpiar-cafeteria.mjs)
+  // y NO se simplifica (pesa poco). Texturas WebP de más calidad.
   cafeteria: {
     entrada: MATERIAL + 'multimedia/Modelo3D_ArllysRamos.glb',
     escala: 22,
-    antes: reemplazarTexturasCafeteria,
+    antes: prepararCafeteria,
+    calidadTextura: 92,
     meshopt: true,
-    hero: { antes: reemplazarTexturasCafeteria, simplificarTodo: { ratio: 0.5 }, maxTextura: 512 }
+    hero: { maxTextura: 512, calidadTextura: 88 }
   },
   oficina: {
     entrada: MATERIAL + 'arquitectura/Ejemplo3_Oficina.glb',

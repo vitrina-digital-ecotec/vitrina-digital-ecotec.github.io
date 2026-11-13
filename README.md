@@ -476,3 +476,14 @@ Guía completa: **`supabase/CONFIGURAR.md`**. Resumen:
 - **«¿Olvidaste tu contraseña?»** manda un enlace; al abrirlo, la misma página muestra «Contraseña nueva» (mínimo 12 caracteres).
 - `admin/index.html`: sin sesión de admin no muestra nada y manda al login. Si la sesión se cierra en otra pestaña, también vuelve al login. Tiene las pestañas Proyectos · Carreras · Ajustes · Métricas (se llenan en las partes 3–7).
 - La sesión dura mientras se use (el token se renueva solo) y se guarda en ese navegador hasta tocar **Salir**.
+
+### Arreglo de las texturas de la Cafetería (Fase 5)
+En el carrusel y en la AR se veían rayas, manchas blancas y parpadeo en las paredes y en el mostrador. Causas encontradas en el original (`Modelo3D_ArllysRamos.glb`) y arreglo en `herramientas/maqueta/limpiar-cafeteria.mjs` (el original no se toca):
+1. **17 piezas duplicadas** en el mismo lugar (una con material y otra sin): parpadeaban (z-fighting). Se quita la copia sin material.
+2. **Piezas sin material** (glTF las dibuja metálicas) → «aluminio». Los «aluminio» tenían **metalicidad 3** (el máximo es 1) → 0, que es como ya se veían en la AR.
+3. **Muros y mostrador solo se veían bien con «doble cara»**, y la AR propia dibuja un solo lado (es más rápida): en la AR el muro de las puertas desaparecía y quedaban flotando la franja de damero, las puertas y los marcos. Ahora cada cara tiene su copia de atrás como geometría real (lo mismo que hace «doble cara») y ningún material usa «doble cara»: se ve igual en el carrusel y en la AR, sin caras superpuestas.
+4. Se quitan 1404 caras ocultas pegadas al muro o al piso (espaldas de molduras, bases de muebles).
+5. **Optimización:** sin simplificar (tampoco la versión del carrusel), texturas WebP de más calidad (92) y la **paleta de colores sin pérdida** (en `optimizar.mjs`, para todos los modelos: la compresión con pérdida mezclaba los colores vecinos de la paleta).
+6. **AR propia:** filtro anisotrópico ×4 en las texturas (el piso y las franjas vistos de costado no se ven borrosos).
+
+Resultado: `cafeteria.glb` 407 KB y `cafeteria-hero.glb` 397 KB, 8 llamadas de dibujo. Los cuadros propios (disco, malteada y estrella) siguen igual.
