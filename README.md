@@ -138,6 +138,11 @@ vitrina-digital/
 ├── placa.html          ← diseño imprimible de la placa (NFC + QR automático)
 ├── data/
 │   └── proyectos.json  ← contenido de respaldo (Plan B) y semilla de Supabase
+├── admin/
+│   ├── login.html      ← ingreso del docente (correo + contraseña, «¿Olvidaste tu contraseña?»)
+│   ├── index.html      ← panel (sin sesión de admin, manda al login)
+│   ├── admin.css       ← estilos del panel
+│   └── js/sesion.js    ← cliente de Supabase (supabase-js 2.118.0 por CDN) y revisión de admin
 ├── supabase/
 │   ├── CONFIGURAR.md   ← ★ guía paso a paso de Supabase (proyecto, claves, SQL, admin, URLs)
 │   ├── 01-esquema.sql  ← tablas, seguridad (RLS) y buckets
@@ -371,6 +376,7 @@ Las descripciones, los puntos y el asistente de los 4 proyectos nuevos los redac
 - `node rendimiento.mjs todos --sw` mide la AR propia de los 5 modelos (ver «Fluidez de los 6 modelos»).
 - `navegador.test.mjs` (Fase 5) simula Android con Brave, Instagram y Chrome sin AR: aviso «Ábrelo en Chrome», enlace `intent://` y evento `navegador_no_compatible`.
 - `datos-supabase.test.mjs` (Fase 5) finge un Supabase que responde, que está caído y que tarda: el sitio usa Supabase o el Plan B sin quedar en blanco.
+- `admin-login.test.mjs` (Fase 5): sin sesión el panel manda al login; contraseña incorrecta (contra el Supabase real); con un Supabase fingido, entra un admin, una cuenta no admin no puede y «Salir» cierra la sesión.
 - `node seguridad-supabase.mjs` (con las claves ya en `config.js`) prueba la seguridad **del Supabase real** con la clave pública.
 - `resolucion.test.mjs` simula FPS altos, bajos y con tope de cámara, y revisa la resolución dinámica.
 - `node capturas.mjs` recorre todas las páginas en **390 px y 1440 px**: revisa que no haya errores en la consola ni scroll horizontal y guarda capturas en `pruebas/capturas/` (no se suben al repositorio).
@@ -463,3 +469,10 @@ Guía completa: **`supabase/CONFIGURAR.md`**. Resumen:
 - **Seguridad (RLS):** con la clave pública solo se leen los proyectos publicados y se registran eventos. Editar, subir archivos, ver métricas y ver proyectos ocultos: solo correos de la tabla `administradores`.
 - **Plan B:** `js/datos.js` espera a Supabase hasta 4 s. Si no responde (sin internet, pausado, caído), usa la **última copia buena** guardada en el navegador y, si no hay, `data/proyectos.json`. La vitrina nunca queda en blanco.
 - Si cambias `data/proyectos.json`, regenera la semilla: `node herramientas/supabase/semilla.mjs`.
+
+### Login del panel (parte 2) — `/admin/`
+- **Dirección:** https://vitrina-digital-ecotec.github.io/admin/ — el sitio público no tiene enlaces al panel (y las páginas tienen `noindex` para que Google no las muestre).
+- `admin/login.html`: correo + contraseña (Supabase Auth), botón 👁 para ver la contraseña, mensajes simples («Correo o contraseña incorrectos», «Supabase pausado»…). Después de entrar revisa en la base de datos (`es_admin()`) que el correo esté en `administradores`: si no, cierra la sesión y avisa.
+- **«¿Olvidaste tu contraseña?»** manda un enlace; al abrirlo, la misma página muestra «Contraseña nueva» (mínimo 12 caracteres).
+- `admin/index.html`: sin sesión de admin no muestra nada y manda al login. Si la sesión se cierra en otra pestaña, también vuelve al login. Tiene las pestañas Proyectos · Carreras · Ajustes · Métricas (se llenan en las partes 3–7).
+- La sesión dura mientras se use (el token se renueva solo) y se guarda en ese navegador hasta tocar **Salir**.

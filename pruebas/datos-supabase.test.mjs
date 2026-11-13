@@ -28,7 +28,7 @@ async function pagina(responder) {
   const original = await readFile(new URL('../js/config.js', import.meta.url), 'utf8');
   await p.route('**/js/config.js', r => r.fulfill({
     contentType: 'text/javascript',
-    body: original.replace("SUPABASE_URL = ''", `SUPABASE_URL = '${FALSO}'`).replace("SUPABASE_CLAVE_PUBLICA = ''", "SUPABASE_CLAVE_PUBLICA = 'sb_publishable_prueba'")
+    body: original.replace(/SUPABASE_URL = '[^']*'/, `SUPABASE_URL = '${FALSO}'`).replace(/SUPABASE_CLAVE_PUBLICA = '[^']*'/, "SUPABASE_CLAVE_PUBLICA = 'sb_publishable_prueba'")
   }));
   const pedidos = [];
   await p.route(`${FALSO}/**`, (r) => { pedidos.push(r.request()); return responder(r); });

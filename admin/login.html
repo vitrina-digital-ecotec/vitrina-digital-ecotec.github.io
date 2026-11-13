@@ -1,0 +1,192 @@
+<!doctype html>
+<!--
+  PANEL DEL DOCENTE · Inicio de sesión
+  Correo + contraseña con Supabase Auth. Solo entran los correos de la tabla «administradores».
+  También permite pedir un enlace para cambiar la contraseña («¿Olvidaste tu contraseña?»):
+  al abrir ese enlace, esta misma página muestra el formulario «Contraseña nueva».
+-->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="../img/icono.svg" type="image/svg+xml">
+  <title>Ingresar · Panel de la Vitrina Digital</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#0662AE">
+  <link rel="stylesheet" href="../css/estilos.css">
+  <link rel="stylesheet" href="admin.css">
+  <!-- Se guarda antes de que Supabase lo lea y lo borre: dice si se llegó desde el correo de «cambiar contraseña» -->
+  <script>window.__vieneDeRecuperacion = /type=recovery/.test(location.hash);</script>
+</head>
+<body class="admin-login">
+  <main class="login-caja">
+    <header class="login-cabecera">
+      <img src="../img/logo-ecotec-blanco.svg" alt="Universidad Ecotec" width="120" height="32">
+      <p class="login-sub">Vitrina Digital</p>
+      <h1>Panel del docente</h1>
+    </header>
+
+    <p class="aviso" id="aviso" role="alert" hidden></p>
+
+    <!-- 1. Ingresar -->
+    <form class="login-form" id="form-ingresar" novalidate>
+      <label for="correo">Correo</label>
+      <input id="correo" type="email" autocomplete="username" required inputmode="email" spellcheck="false">
+      <label for="clave">Contraseña</label>
+      <div class="campo-clave">
+        <input id="clave" type="password" autocomplete="current-password" required>
+        <button type="button" class="ver-clave" data-para="clave" aria-label="Mostrar la contraseña" aria-pressed="false">👁</button>
+      </div>
+      <button class="boton-panel principal" type="submit">Ingresar</button>
+      <button class="enlace" type="button" id="ir-olvido">¿Olvidaste tu contraseña?</button>
+    </form>
+
+    <!-- 2. Pedir el enlace para cambiar la contraseña -->
+    <form class="login-form" id="form-olvido" novalidate hidden>
+      <p class="login-texto">Escribe tu correo y te enviaremos un enlace para crear una contraseña nueva.</p>
+      <label for="correo-olvido">Correo</label>
+      <input id="correo-olvido" type="email" autocomplete="username" required inputmode="email" spellcheck="false">
+      <button class="boton-panel principal" type="submit">Enviar enlace</button>
+      <button class="enlace" type="button" id="volver-ingresar">Volver a ingresar</button>
+    </form>
+
+    <!-- 3. Contraseña nueva (al abrir el enlace del correo) -->
+    <form class="login-form" id="form-nueva" novalidate hidden>
+      <p class="login-texto">Crea tu contraseña nueva: al menos 12 caracteres, con letras, números y algún símbolo.</p>
+      <label for="nueva">Contraseña nueva</label>
+      <div class="campo-clave">
+        <input id="nueva" type="password" autocomplete="new-password" required minlength="12">
+        <button type="button" class="ver-clave" data-para="nueva" aria-label="Mostrar la contraseña" aria-pressed="false">👁</button>
+      </div>
+      <label for="nueva-2">Repítela</label>
+      <input id="nueva-2" type="password" autocomplete="new-password" required minlength="12">
+      <button class="boton-panel principal" type="submit">Guardar contraseña</button>
+    </form>
+
+    <p class="login-pie"><a href="../index.html">← Volver a la vitrina</a></p>
+  </main>
+
+  <script type="module">
+    import { supabase, esAdmin, mensajeDeError } from './js/sesion.js';
+
+    const $ = (id) => document.getElementById(id);
+    const formularios = { ingresar: $('form-ingresar'), olvido: $('form-olvido'), nueva: $('form-nueva') };
+    const aviso = $('aviso');
+
+    function mostrar(cual) {
+      Object.entries(formularios).forEach(([nombre, f]) => { f.hidden = nombre !== cual; });
+      formularios[cual].querySelector('input')?.focus();
+    }
+    function avisar(texto, tipo = 'error') {
+      aviso.textContent = texto;
+      aviso.dataset.tipo = tipo;
+      aviso.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
+      aviso.hidden = !texto;
+    }
+    function ocupado(form, si) {
+      const boton = form.querySelector('button[type="submit"]');
+      boton.disabled = si;
+      boton.dataset.texto ??= boton.textContent;
+      boton.textContent = si ? 'Un momento…' : boton.dataset.texto;
+    }
+
+    // Por qué se llegó aquí (lo pone el panel al mandar al login)
+    const motivos = {
+      'sin-permiso': 'Esta cuenta no tiene permiso para editar la vitrina. Pide a un administrador que agregue tu correo.',
+      'sin-conexion': 'No se pudo conectar con Supabase. Revisa tu internet o si el proyecto está pausado.',
+      'salio': 'Cerraste la sesión.'
+    };
+    const motivo = new URLSearchParams(location.search).get('motivo');
+    if (motivos[motivo]) avisar(motivos[motivo], motivo === 'salio' ? 'ok' : 'error');
+
+    // Mostrar u ocultar la contraseña (ayuda en el celular)
+    document.querySelectorAll('.ver-clave').forEach(b => b.addEventListener('click', () => {
+      const campo = $(b.dataset.para);
+      const ver = campo.type === 'password';
+      campo.type = ver ? 'text' : 'password';
+      b.setAttribute('aria-pressed', String(ver));
+      b.setAttribute('aria-label', ver ? 'Ocultar la contraseña' : 'Mostrar la contraseña');
+    }));
+
+    // ¿Llegó desde el correo de «cambiar contraseña»?
+    supabase.auth.onAuthStateChange((evento) => {
+      if (evento === 'PASSWORD_RECOVERY') { avisar(''); mostrar('nueva'); }
+    });
+    if (window.__vieneDeRecuperacion) {
+      mostrar('nueva');
+    } else {
+      // ¿Ya tenía la sesión abierta? Directo al panel
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && await esAdmin().catch(() => false)) location.replace('index.html');
+      else $('correo').focus();
+    }
+
+    // 1. Ingresar
+    formularios.ingresar.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = $('correo').value.trim().toLowerCase();
+      const password = $('clave').value;
+      if (!email || !password) { avisar('Escribe tu correo y tu contraseña.'); return; }
+      ocupado(formularios.ingresar, true);
+      avisar('');
+      try {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        if (!await esAdmin()) {
+          await supabase.auth.signOut();
+          avisar(motivos['sin-permiso']);
+          return;
+        }
+        location.replace('index.html');
+      } catch (error) {
+        avisar(mensajeDeError(error));
+        $('clave').select();
+      } finally {
+        ocupado(formularios.ingresar, false);
+      }
+    });
+
+    // 2. Pedir el enlace
+    $('ir-olvido').addEventListener('click', () => { avisar(''); $('correo-olvido').value = $('correo').value; mostrar('olvido'); });
+    $('volver-ingresar').addEventListener('click', () => { avisar(''); mostrar('ingresar'); });
+    formularios.olvido.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = $('correo-olvido').value.trim().toLowerCase();
+      if (!email) { avisar('Escribe tu correo.'); return; }
+      ocupado(formularios.olvido, true);
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: new URL('login.html', location.href).href });
+        if (error) throw error;
+        // El mismo mensaje exista o no la cuenta (así nadie averigua qué correos son de administradores)
+        avisar('Si ese correo es de un administrador, en unos minutos te llegará un enlace. Revisa también la carpeta de spam.', 'ok');
+        mostrar('ingresar');
+      } catch (error) {
+        avisar(mensajeDeError(error));
+      } finally {
+        ocupado(formularios.olvido, false);
+      }
+    });
+
+    // 3. Guardar la contraseña nueva
+    formularios.nueva.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const clave = $('nueva').value;
+      if (clave.length < 12) { avisar('Usa al menos 12 caracteres.'); return; }
+      if (clave !== $('nueva-2').value) { avisar('Las dos contraseñas no coinciden.'); return; }
+      ocupado(formularios.nueva, true);
+      try {
+        const { error } = await supabase.auth.updateUser({ password: clave });
+        if (error) throw error;
+        location.replace('index.html');
+      } catch (error) {
+        avisar(mensajeDeError(error));
+      } finally {
+        ocupado(formularios.nueva, false);
+      }
+    });
+  </script>
+</body>
+</html>

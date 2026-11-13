@@ -18,8 +18,8 @@ export const URL_PUBLICA = 'https://vitrina-digital-ecotec.github.io/';
 //   NUNCA pongas aquí la «secret key» ni la «service_role».
 // Si quedan vacías, el sitio usa data/proyectos.json (Plan B).
 // =========================================================
-export const SUPABASE_URL = '';
-export const SUPABASE_CLAVE_PUBLICA = '';
+export const SUPABASE_URL = 'https://udyoqtkmcoyseltjcqlf.supabase.co';
+export const SUPABASE_CLAVE_PUBLICA = 'sb_publishable_XPdX1dzUK6cOn9hn7u2Ajg_PPuaNNFM';
 
 /** Dirección que abre la placa. origen: 'qr' (el código impreso) o 'nfc' (el chip, más adelante). */
 export function urlDeLaPlaca(origen) {

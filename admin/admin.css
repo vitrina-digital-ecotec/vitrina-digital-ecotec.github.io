@@ -1,0 +1,77 @@
+/* =========================================================
+   PANEL DEL DOCENTE — versión sobria de los estilos de la vitrina
+   Usa los mismos colores y letras (css/estilos.css). Mobile-first.
+   ========================================================= */
+
+/* ---------- Botones y avisos comunes ---------- */
+.boton-panel {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1.5px solid var(--azul);
+  background: var(--blanco); color: var(--azul); font: 600 14px var(--texto);
+  text-decoration: none; cursor: pointer;
+}
+.boton-panel.principal { background: var(--azul); color: var(--blanco); }
+.boton-panel.claro { border-color: rgba(255, 255, 255, .7); background: transparent; color: var(--blanco); }
+.boton-panel:disabled { opacity: .6; cursor: wait; }
+.boton-panel:hover:not(:disabled) { filter: brightness(1.08); }
+
+.aviso { margin: 0 0 16px; padding: 12px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; background: #FDECEC; color: #8A1C1C; }
+.aviso[data-tipo="ok"] { background: var(--hielo); color: var(--azul); }
+
+.enlace { border: 0; background: none; padding: 8px 0; color: var(--azul); font: 500 14px var(--texto); text-decoration: underline; cursor: pointer; min-height: 44px; }
+
+/* ---------- Login ---------- */
+.admin-login { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--degradado); }
+.login-caja { width: min(100%, 420px); background: var(--blanco); border-radius: 26px; overflow: hidden; box-shadow: 0 20px 60px rgba(4, 60, 120, .35); }
+.login-cabecera { padding: 24px 24px 20px; background: var(--degradado); color: var(--blanco); }
+.login-cabecera img { height: 28px; width: auto; }
+.login-sub { margin: 16px 0 2px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
+.login-cabecera h1 { margin: 0; font: 700 28px/1 var(--display); text-transform: uppercase; letter-spacing: -.03em; }
+.login-caja > .aviso { margin: 20px 24px 0; }
+.login-form { display: grid; gap: 6px; padding: 20px 24px 8px; }
+.login-form label { margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--tinta); }
+.login-form input {
+  width: 100%; min-height: 48px; padding: 0 14px; border-radius: 14px;
+  border: 1.5px solid #C9D6E6; background: var(--blanco); color: var(--tinta); font: 400 16px var(--texto);
+}
+.login-form input:focus { border-color: var(--azul); outline: none; box-shadow: 0 0 0 3px rgba(1, 179, 230, .35); }
+.login-form .boton-panel { margin-top: 16px; min-height: 50px; }
+.login-texto { margin: 0; font-size: 14px; color: var(--gris); }
+.campo-clave { position: relative; }
+.campo-clave input { padding-right: 52px; }
+.ver-clave { position: absolute; right: 2px; top: 2px; width: 44px; height: 44px; border: 0; background: none; cursor: pointer; font-size: 18px; border-radius: 12px; }
+.ver-clave[aria-pressed="true"] { background: var(--hielo); }
+.login-pie { margin: 0; padding: 8px 24px 22px; font-size: 13px; }
+.login-pie a { color: var(--gris); }
+
+/* ---------- Panel ---------- */
+.admin-panel { min-height: 100vh; background: var(--hielo); }
+.verificando .panel-cabecera, .verificando .panel-cuerpo { display: none; }
+.verificando-texto { margin: 0; padding: 40vh 16px 0; text-align: center; color: var(--azul); font-weight: 600; }
+
+.panel-cabecera { background: var(--degradado); color: var(--blanco); padding: 14px 16px 0; }
+.panel-cabecera-fila { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.panel-cabecera img { height: 26px; width: auto; }
+.panel-usuario { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.panel-correo { font-size: 13px; opacity: .9; overflow-wrap: anywhere; }
+.panel-cabecera h1 { margin: 14px 0 10px; font: 700 26px/1 var(--display); text-transform: uppercase; letter-spacing: -.03em; }
+
+.pestanas { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+.pestanas::-webkit-scrollbar { display: none; }
+.pestanas [role="tab"] {
+  flex-shrink: 0; min-height: 48px; padding: 0 18px; border: 0; border-radius: 16px 16px 0 0;
+  background: rgba(255, 255, 255, .16); color: var(--blanco); font: 600 14px var(--texto); cursor: pointer;
+}
+.pestanas [role="tab"][aria-selected="true"] { background: var(--hielo); color: var(--azul); }
+
+.panel-cuerpo { padding: 16px; display: grid; gap: 16px; max-width: 1180px; margin: 0 auto; }
+.tarjeta-panel, .seccion { background: var(--blanco); border-radius: 20px; padding: 18px; box-shadow: 0 4px 18px rgba(6, 98, 174, .08); }
+.seccion h2 { margin: 0 0 8px; font: 700 20px/1.1 var(--display); text-transform: uppercase; letter-spacing: -.02em; color: var(--azul); }
+.resumen-estado { margin: 0; font-size: 14px; }
+.pendiente { margin: 0; color: var(--gris); }
+
+@media (min-width: 900px) {
+  .panel-cabecera { padding: 18px 32px 0; }
+  .pestanas { margin: 0 -32px; padding: 0 32px; }
+  .panel-cuerpo { padding: 24px 32px; }
+}

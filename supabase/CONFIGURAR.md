@@ -95,6 +95,8 @@ En el plan gratuito, **un proyecto sin uso por 7 días se pausa**. Mientras est�
 
 Límites del plan gratuito que importan aquí: 500 MB de base de datos (sobra), 1 GB de archivos en Storage, 5 GB de descarga al mes y 50 MB por archivo. El video de Multimedia (9 MB) y los modelos (≤ 8 MB) caben de sobra; si se suben muchos videos, conviene que sigan viviendo en GitHub Pages.
 
-## 8. Después de la presentación
+## 8. Entrar al panel y cambiar la contraseña
 
-- Cambia la contraseña del admin: **Authentication** → **Users** → tu usuario → **⋯** → *Send password recovery* (o bórralo y créalo de nuevo con otra contraseña).
+- Panel: **https://vitrina-digital-ecotec.github.io/admin/** (si no hay sesión, abre el login).
+- **Cambiar la contraseña** (recomendado después de la presentación): en el login toca **«¿Olvidaste tu contraseña?»**, escribe tu correo y abre el enlace que llega. Se abre el login con el formulario **«Contraseña nueva»**.
+  - En el plan gratuito, Supabase envía pocos correos por hora (unos 2) y solo a correos de miembros de la organización de Supabase. El tuyo lo es. Si no llega: revisa spam, espera una hora, o en **Authentication** → **Users** → tu usuario → **⋯** → *Send password recovery*.

@@ -1,0 +1,110 @@
+<!doctype html>
+<!--
+  PANEL DEL DOCENTE
+  Sin sesión de administrador no se ve nada: exigirAdmin() manda al login.
+  Pestañas: Proyectos · Carreras · Ajustes · Métricas (se completan en las partes 3 a 7 de la Fase 5/6).
+-->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="../img/icono.svg" type="image/svg+xml">
+  <title>Panel · Vitrina Digital Ecotec</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#0662AE">
+  <link rel="stylesheet" href="../css/estilos.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-panel verificando">
+  <!-- Mientras se revisa la sesión solo se ve esto -->
+  <p class="verificando-texto" id="verificando" role="status">Revisando tu sesión…</p>
+
+  <header class="panel-cabecera">
+    <div class="panel-cabecera-fila">
+      <img src="../img/logo-ecotec-blanco.svg" alt="Universidad Ecotec" width="104" height="28">
+      <div class="panel-usuario">
+        <span class="panel-correo" id="correo-admin"></span>
+        <a class="boton-panel claro" href="../index.html" target="_blank" rel="noopener">Ver la vitrina ↗</a>
+        <button class="boton-panel claro" type="button" id="salir">Salir</button>
+      </div>
+    </div>
+    <h1>Panel del docente</h1>
+    <nav class="pestanas" role="tablist" aria-label="Secciones del panel">
+      <button role="tab" type="button" id="tab-proyectos" aria-controls="seccion-proyectos" aria-selected="true">Proyectos</button>
+      <button role="tab" type="button" id="tab-carreras" aria-controls="seccion-carreras" aria-selected="false" tabindex="-1">Carreras</button>
+      <button role="tab" type="button" id="tab-ajustes" aria-controls="seccion-ajustes" aria-selected="false" tabindex="-1">Ajustes</button>
+      <button role="tab" type="button" id="tab-metricas" aria-controls="seccion-metricas" aria-selected="false" tabindex="-1">Métricas</button>
+    </nav>
+  </header>
+
+  <main class="panel-cuerpo">
+    <section class="tarjeta-panel resumen" aria-label="Estado de la conexión">
+      <p class="resumen-estado" id="resumen" role="status">Conectando…</p>
+    </section>
+
+    <section class="seccion" id="seccion-proyectos" role="tabpanel" aria-labelledby="tab-proyectos">
+      <h2>Proyectos</h2>
+      <p class="pendiente">Aquí vas a crear, editar, ocultar y borrar proyectos (parte 3).</p>
+    </section>
+    <section class="seccion" id="seccion-carreras" role="tabpanel" aria-labelledby="tab-carreras" hidden>
+      <h2>Carreras</h2>
+      <p class="pendiente">Nombre, descripción, ícono y orden de cada carrera (parte 3).</p>
+    </section>
+    <section class="seccion" id="seccion-ajustes" role="tabpanel" aria-labelledby="tab-ajustes" hidden>
+      <h2>Ajustes</h2>
+      <p class="pendiente">Periodo actual y AR propia (parte 3).</p>
+    </section>
+    <section class="seccion" id="seccion-metricas" role="tabpanel" aria-labelledby="tab-metricas" hidden>
+      <h2>Métricas</h2>
+      <p class="pendiente">Visitas, KPIs y exportar CSV (parte 7).</p>
+    </section>
+  </main>
+
+  <script type="module">
+    import { supabase, exigirAdmin, cerrarSesion } from './js/sesion.js';
+
+    const $ = (id) => document.getElementById(id);
+    const sesion = await exigirAdmin();          // sin sesión de admin, la página no pasa de aquí
+    document.body.classList.remove('verificando');
+    $('verificando').hidden = true;
+    $('correo-admin').textContent = sesion.user.email;
+    $('salir').addEventListener('click', cerrarSesion);
+
+    // ---------- Pestañas (también con flechas del teclado; se recuerda en la dirección: #metricas) ----------
+    const pestanas = [...document.querySelectorAll('[role="tab"]')];
+    function abrir(pestana, enfocar = false) {
+      pestanas.forEach(p => {
+        const activa = p === pestana;
+        p.setAttribute('aria-selected', String(activa));
+        p.tabIndex = activa ? 0 : -1;
+        $(p.getAttribute('aria-controls')).hidden = !activa;
+      });
+      if (enfocar) pestana.focus();
+      history.replaceState(null, '', `#${pestana.id.replace('tab-', '')}`);
+    }
+    pestanas.forEach((p, i) => {
+      p.addEventListener('click', () => abrir(p));
+      p.addEventListener('keydown', (e) => {
+        const salto = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+        if (salto) abrir(pestanas[(i + salto + pestanas.length) % pestanas.length], true);
+      });
+    });
+    const inicial = $(`tab-${location.hash.slice(1)}`);
+    if (inicial) abrir(inicial);
+
+    // ---------- Resumen: confirma que la sesión de admin ve todo (también lo no publicado) ----------
+    const { data: proyectos, error } = await supabase.from('proyectos').select('id, publicado, actualizado').order('orden');
+    if (error) {
+      $('resumen').textContent = 'No se pudieron leer los proyectos. Revisa tu internet o si Supabase está pausado.';
+    } else {
+      const publicados = proyectos.filter(p => p.publicado).length;
+      const ultimo = proyectos.map(p => p.actualizado).sort().at(-1);
+      $('resumen').textContent = `Conectado ✅ · ${proyectos.length} proyectos (${publicados} publicados)` +
+        (ultimo ? ` · último cambio: ${new Date(ultimo).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}` : '');
+    }
+  </script>
+</body>
+</html>
