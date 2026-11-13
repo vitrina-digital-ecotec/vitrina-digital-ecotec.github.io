@@ -46,9 +46,9 @@ function formulario(c, i) {
         <h3>${escapar(d.nombre || 'Carrera nueva')}</h3>
         <span class="insignia">${n} proyecto${n === 1 ? '' : 's'}</span>
       </div>
-      <div class="campo"><label for="${p}-nombre">Nombre</label><input id="${p}-nombre" name="nombre" value="${escapar(d.nombre ?? '')}" required></div>
-      <div class="campo"><label for="${p}-corto">Nombre corto</label><input id="${p}-corto" name="nombreCorto" value="${escapar(d.nombreCorto ?? '')}"></div>
-      <div class="campo"><label for="${p}-desc">Descripción</label><textarea id="${p}-desc" name="descripcion" rows="2">${escapar(d.descripcion ?? '')}</textarea></div>
+      <div class="campo"><label for="${p}-nombre">Nombre <span class="requerido">(obligatorio)</span></label><input id="${p}-nombre" name="nombre" value="${escapar(d.nombre ?? '')}" required></div>
+      <div class="campo"><label for="${p}-corto">Nombre corto <span class="opcional">(opcional)</span></label><input id="${p}-corto" name="nombreCorto" value="${escapar(d.nombreCorto ?? '')}"></div>
+      <div class="campo"><label for="${p}-desc">Descripción <span class="opcional">(opcional)</span></label><textarea id="${p}-desc" name="descripcion" rows="2">${escapar(d.descripcion ?? '')}</textarea></div>
       <div class="campo"><label for="${p}-icono">Ícono</label>
         <select id="${p}-icono" name="icono">${Object.entries(ICONOS).map(([id, nombre]) => `<option value="${id}" ${id === d.icono ? 'selected' : ''}>${nombre}</option>`).join('')}</select>
       </div>

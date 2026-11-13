@@ -30,6 +30,13 @@ async function abrirPanel({ ancho = 1280 } = {}) {
   return { pagina, contexto, sb, errores };
 }
 const fila = (pagina, id) => pagina.locator(`.tarjeta-proyecto[data-id="${id}"]`);
+
+/** Toca «Guardar cambios» y espera el aviso (el editor se queda abierto) */
+async function guardar(pagina) {
+  await pagina.click('button[type="submit"]');
+  await pagina.waitForFunction(() => document.getElementById('aviso-flotante')?.textContent.includes('✓'), null, { timeout: 20000 });
+}
+const volverALista = async (pagina) => { await pagina.click('#volver-lista'); await pagina.waitForSelector('.lista-proyectos'); };
 const ultimo = (sb, metodo, tabla) => sb.pedidos.filter(p => p.metodo === metodo && p.ruta.endsWith(`/${tabla}`)).at(-1);
 
 test('lista: 6 proyectos en el orden del carrusel y filtro por carrera', async () => {
@@ -56,8 +63,10 @@ test('editar: cambia textos, etiqueta y créditos sin perder puntos, galería ni
   await pagina.click('[data-agregar="credito"]');
   await pagina.fill('#filas-creditos .fila:last-child [name="credito-etiqueta"]', 'Planos');
   await pagina.fill('#filas-creditos .fila:last-child [name="credito-texto"]', 'Dibujados en AutoCAD');
-  await pagina.click('button[type="submit"]');
-  await pagina.waitForSelector('.lista-proyectos');
+  await guardar(pagina);
+  // Se queda en el mismo proyecto, con el título nuevo
+  assert.match(await pagina.textContent('.editor-cabecera h2'), /Casa Moderna \(editada\)/);
+  assert.equal(await pagina.textContent('#aviso-flotante'), 'Cambios guardados ✓');
   const d = ultimo(sb, 'PATCH', 'proyectos').cuerpo.datos;
   assert.equal(d.titulo, 'Casa Moderna (editada)');
   assert.equal(d.ejemplo, undefined);
@@ -69,6 +78,7 @@ test('editar: cambia textos, etiqueta y créditos sin perder puntos, galería ni
   assert.equal(d.galeria.imagenes.length, sb.tablas.proyectos.find(p => p.id === 'casa-moderna').datos.galeria.imagenes.length, 'la galería no se pierde');
   assert.ok(d.galeria.imagenes.length > 0);
   assert.equal(d.creditoModelo.licencia, 'CC BY 4.0');
+  await volverALista(pagina);
   assert.match(await fila(pagina, 'casa-moderna').textContent(), /Casa Moderna \(editada\)/);
   await contexto.close();
 });
@@ -86,9 +96,11 @@ test('nuevo proyecto: dirección automática, empieza oculto y no se publica sin
   await pagina.waitForSelector('.error-campo');
   assert.match(await pagina.locator('.error-campo').first().textContent(), /falta la imagen de portada/);
   assert.equal(ultimo(sb, 'POST', 'proyectos'), undefined, 'no debe guardarse');
-  // Sin publicar sí se crea
+  // Sin publicar sí se crea (y el editor sigue abierto, ya como «Editar»)
   await pagina.locator('label.interruptor:has([name="publicado"])').click();
-  await pagina.click('button[type="submit"]');
+  await guardar(pagina);
+  assert.match(await pagina.textContent('.editor-cabecera h2'), /Editar: Mi Nivel Ñandú/);
+  await volverALista(pagina);
   await fila(pagina, 'mi-nivel-nandu').waitFor();
   const nuevo = ultimo(sb, 'POST', 'proyectos').cuerpo;
   assert.equal(nuevo.publicado, false);
@@ -96,11 +108,14 @@ test('nuevo proyecto: dirección automática, empieza oculto y no se publica sin
   assert.equal(nuevo.orden, 70);
   assert.equal(nuevo.datos.tipo, 'escenario');
   assert.deepEqual(nuevo.datos.ar.puntos, []);
+  assert.equal(nuevo.datos.ar.alt, 'Modelo 3D de Mi Nivel Ñandú', 'descripción sugerida');
+  assert.equal(nuevo.datos.ar.escalaAutomatica, true, 'escala automática por defecto');
+  assert.deepEqual(nuevo.datos.ar.cortes, [], 'sin cortes por defecto');
   assert.match(await fila(pagina, 'mi-nivel-nandu').textContent(), /Oculto/);
   // Publicar desde la lista también lo impide
   await fila(pagina, 'mi-nivel-nandu').locator('[data-accion="publicar"]').click();
   await pagina.waitForSelector('#aviso-flotante[data-tipo="error"]');
-  assert.match(await pagina.textContent('#aviso-flotante'), /Para publicarlo falta.*discapacidad visual/);
+  assert.match(await pagina.textContent('#aviso-flotante'), /Para publicarlo falta: la imagen de portada, el modelo 3D./);
   assert.ok(await pagina.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'sin scroll horizontal en 390 px');
   await contexto.close();
 });
@@ -127,15 +142,15 @@ test('ocultar, ordenar y eliminar (con confirmación)', async () => {
 test('video: modos, modo inicial y letra; los créditos de la canción pasan a la lista', async () => {
   const { pagina, contexto, sb } = await abrirPanel();
   await fila(pagina, 'cuentos-y-espias').locator('[data-accion="editar"]').click();
-  assert.ok(await pagina.locator('[data-solo="video"]').first().isVisible());
+  assert.ok(await pagina.locator('fieldset[data-solo="video"]').first().isVisible());
   assert.ok(await pagina.locator('fieldset[data-solo="maqueta escenario"]').isHidden());
   assert.ok(await pagina.locator('[data-archivo="modelo"]').isHidden(), 'un video no sube modelo 3D');
   assert.equal(await pagina.locator('.opcion:has([value="maqueta"]) input').isDisabled(), true);
+  await pagina.click('.avanzadas > summary');
   await pagina.locator('.casilla:has([value="360"])').click();          // quitar 360°
   await pagina.locator('.casilla:has([value="sin-televisor"]) [name="modo-inicial"]').check();
   await pagina.fill('#filas-letra .fila:first-child [name="letra-lineas"]', 'Primera línea\nSegunda línea');
-  await pagina.click('button[type="submit"]');
-  await pagina.waitForSelector('.lista-proyectos');
+  await guardar(pagina);
   const d = ultimo(sb, 'PATCH', 'proyectos').cuerpo.datos;
   assert.deepEqual(d.ar.modos, ['televisor', 'sin-televisor']);
   assert.equal(d.ar.modoInicial, 'sin-televisor');

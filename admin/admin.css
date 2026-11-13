@@ -248,3 +248,16 @@
 .fila-campos { display: grid; gap: 8px; min-width: 0; }
 @media (min-width: 700px) { .fila-galeria { grid-template-columns: 96px 1fr auto; } .fila-galeria .fila-botones { grid-column: auto; } .fila-mini { width: 96px; height: 96px; } }
 @media (max-width: 420px) { .archivo { grid-template-columns: 64px 1fr; } .archivo-vista { width: 64px; height: 64px; } }
+
+/* Ronda de mejoras del panel: opcional, sugerido, opciones avanzadas, reducir modelo */
+.opcional { font-weight: 400; color: var(--gris); font-size: 12px; text-transform: none; letter-spacing: 0; }
+.etiqueta-sugerido { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: #FFF4D6; color: #5C3E00; font-size: 11px; font-weight: 600; }
+.campo:not(:has([data-sugerido])) .etiqueta-sugerido, .fila-campos label:not(:has([data-sugerido])) .etiqueta-sugerido { display: none; }
+[data-sugerido] { background: #FFFCF2 !important; }
+.avanzadas { padding-top: 0; }
+.avanzadas > summary { cursor: pointer; padding: 14px 0; font: 700 15px var(--display); text-transform: uppercase; letter-spacing: .02em; color: var(--azul); min-height: 44px; }
+.avanzadas[open] > summary { border-bottom: 1px solid #E1EAF4; margin-bottom: 4px; }
+.lista-cambios { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 6px; }
+.vista-previa-modelo { display: block; width: 100%; height: 280px; border-radius: 14px; background: var(--hielo); }
+.boton-cancelar-trabajo { justify-self: start; }
+.aviso-flotante { bottom: 92px; }

@@ -9,7 +9,7 @@
 import { $, $$, escapar, slug, avisar, confirmar, errorAlGuardar } from './util.js';
 import { estado, crearProyecto, guardarProyecto, borrarProyecto, intercambiarOrden } from './datos-panel.js';
 import { portadaDe, tipoDe } from '../../js/datos.js';
-import { htmlArchivos, conectarArchivos, leerGaleria } from './editor-archivos.js';
+import { htmlArchivos, conectarArchivos, leerGaleria, tituloGaleria } from './editor-archivos.js';
 import { borrar, borrarCarpeta, archivosDe } from './archivos.js';
 
 const TIPOS = {
@@ -146,7 +146,6 @@ function faltaParaPublicar(d, carrera) {
     if (!d.video) falta.push('el video');
   } else {
     if (!d.ar?.modelo) falta.push('el modelo 3D');
-    if (!d.ar?.alt?.trim()) falta.push('una descripción breve del modelo (la escuchan las personas con discapacidad visual)');
   }
   return falta;
 }
@@ -157,7 +156,7 @@ function urlSitio(ruta) { return /^https?:/.test(ruta) ? ruta : `../${ruta}`; }
 // =========================================================
 // Editor
 // =========================================================
-function abrirEditor(fila) {
+function abrirEditor(fila, { mantenerPosicion = false } = {}) {
   const nuevo = !fila;
   const d = nuevo ? {} : structuredClone(fila.datos);
   editando = { fila, nuevo, datos: d };
@@ -165,6 +164,9 @@ function abrirEditor(fila) {
   const carreraActual = fila?.carrera ?? estado.carreras[0]?.id;
   const cm = d.creditoModelo;
   const creditos = creditosComoLista(d.creditos);
+  // Opciones recomendadas: escala automática y sin cortes (salvo que el proyecto ya tenga otra cosa)
+  const escalaAuto = nuevo || d.ar?.escalaAutomatica === true || !d.ar?.escala;
+  const conCortes = (d.ar?.cortes ?? []).length > 0;
 
   raiz.innerHTML = `
     <form class="editor" id="editor" novalidate>
@@ -176,12 +178,6 @@ function abrirEditor(fila) {
       <fieldset class="bloque">
         <legend>Lo básico</legend>
         ${campo('titulo', 'Título del proyecto', d.titulo, { requerido: true })}
-        ${nuevo ? `
-          <div class="campo">
-            <label for="f-id">Nombre en la dirección web</label>
-            <input id="f-id" name="direccion" pattern="[a-z0-9-]+" spellcheck="false" aria-describedby="vista-direccion">
-            <p class="ayuda" id="vista-direccion">Se crea solo con el título. Solo letras minúsculas, números y guiones. Después no se puede cambiar.</p>
-          </div>` : ''}
         <div class="campo">
           <label for="f-carrera">Carrera</label>
           <select id="f-carrera" name="carrera">
@@ -203,31 +199,70 @@ function abrirEditor(fila) {
         ${campo('estudiante', 'Estudiante(s)', d.estudiante, { ayuda: 'Si son varios, sepáralos con comas.' })}
         ${campo('materia', 'Materia', d.materia)}
         <div class="campo">
-          <label for="f-periodo">Periodo</label>
+          <label for="f-periodo">Periodo <span class="opcional">(opcional)</span></label>
           <div class="campo-con-boton">
             <input id="f-periodo" name="periodo" value="${escapar(d.periodo ?? '')}">
             <button type="button" class="boton-panel" id="usar-periodo">Usar el periodo actual</button>
           </div>
         </div>
-        ${campo('ubicacion', 'Ubicación (opcional)', d.ubicacion, { ayuda: 'Por ejemplo: Campus Samborondón.' })}
         ${campo('descripcion', 'Descripción', d.descripcion, { area: true, ayuda: 'Dos o tres frases: qué es y qué lo hace especial.' })}
+      </fieldset>
+
+      ${htmlArchivos(d)}
+
+      <fieldset class="bloque" data-solo="maqueta escenario">
+        <legend>Realidad aumentada</legend>
+        <fieldset class="campo">
+          <legend>Tamaño sobre la mesa</legend>
+          <label class="casilla"><input type="radio" name="modo-escala" value="auto" ${escalaAuto ? 'checked' : ''}> Automático: que mida unos 60 cm sobre la mesa (recomendado)</label>
+          <label class="casilla"><input type="radio" name="modo-escala" value="exacta" ${escalaAuto ? '' : 'checked'}> Escala exacta (por ejemplo 1:25)</label>
+          <div id="campo-escala" ${escalaAuto ? 'hidden' : ''}>
+            ${campo('escala', 'Escala exacta', d.ar?.escala, { opcional: false, ayuda: 'Por ejemplo: 1:25 (la maqueta es 25 veces más chica que la obra real). Se aplica al subir el modelo.' })}
+          </div>
+          ${escalaAuto && d.ar?.escala ? `<p class="ayuda">Escala actual: ${escapar(d.ar.escala)}.</p>` : ''}
+        </fieldset>
+        ${campoDescripcion('alt', 'Descripción del modelo (para personas ciegas o con baja visión)', d.ar?.alt, sugerenciaModelo(d.titulo), 'Maqueta de una casa de dos pisos con piscina y jardín')}
+        <fieldset class="campo">
+          <legend>Botón «Ver interior» (cortes)</legend>
+          <label class="casilla"><input type="radio" name="modo-cortes" value="sin" ${conCortes ? '' : 'checked'}> Sin cortes (recomendado)</label>
+          <label class="casilla"><input type="radio" name="modo-cortes" value="con" ${conCortes ? 'checked' : ''}> Agregar cortes</label>
+        </fieldset>
+        <div id="bloque-cortes" ${conCortes ? '' : 'hidden'}>
+          <p class="ayuda">Cada toque al botón corta el modelo a una altura (por ejemplo, para quitar el techo). La altura se mide en centímetros desde la base de la maqueta.</p>
+          <div class="filas" id="filas-cortes">${(d.ar?.cortes ?? []).map(filaCorte).join('')}</div>
+          <button type="button" class="boton-panel" data-agregar="corte">+ Agregar corte</button>
+          ${campo('texto-completa', 'Texto del botón con el modelo completo', d.ar?.textoCompleta ?? 'Completa')}
+        </div>
+      </fieldset>
+
+      <fieldset class="bloque" data-solo="video">
+        <legend>Video en realidad aumentada</legend>
+        ${campoDescripcion('alt-video', 'Descripción de la pantalla (para personas ciegas o con baja visión)', d.ar?.alt, sugerenciaVideo(d.titulo), 'Televisor retro con una pantalla de cine que reproduce el video')}
+        <p class="ayuda">El tamaño de la pantalla y los modos (Televisor, Sin televisor, 360°) están en «Opciones avanzadas».</p>
+      </fieldset>
+
+      <fieldset class="bloque" data-solo="video">
+        <legend>Letra de la canción <span class="opcional">(opcional)</span></legend>
+        <p class="ayuda">Aparece completa en la ficha. Escribe cada sección (Verso 1, Coro…) con una línea de la letra por renglón.</p>
+        <div class="filas" id="filas-letra">${(d.letra ?? []).map(filaLetra).join('')}</div>
+        <button type="button" class="boton-panel" data-agregar="letra">+ Agregar sección</button>
       </fieldset>
 
       <fieldset class="bloque">
         <legend>Cómo se muestra</legend>
-        ${interruptor('ejemplo', 'Mostrar la etiqueta «PROYECTO DE EJEMPLO»', !!d.ejemplo, 'Úsala si el proyecto no es de un estudiante real o tiene datos de ejemplo.')}
         ${interruptor('publicado', 'Publicado (se ve en la vitrina)', fila?.publicado ?? false, nuevo ? 'Un proyecto nuevo empieza oculto: publícalo cuando tenga su imagen y su modelo o video.' : '')}
+        ${interruptor('ejemplo', 'Mostrar la etiqueta «PROYECTO DE EJEMPLO»', !!d.ejemplo, 'Úsala si el proyecto no es de un estudiante real o tiene datos de ejemplo.')}
       </fieldset>
 
       <fieldset class="bloque">
-        <legend>Créditos</legend>
+        <legend>Créditos <span class="opcional">(opcional)</span></legend>
         <p class="ayuda">Quién hizo qué. Por ejemplo: «Desarrollo» → «Modelado en Blender».</p>
         <div class="filas" id="filas-creditos">${creditos.map(filaCredito).join('')}</div>
         <button type="button" class="boton-panel" data-agregar="credito">+ Agregar crédito</button>
       </fieldset>
 
       <fieldset class="bloque">
-        <legend>Modelo 3D de otra persona (licencia)</legend>
+        <legend>Modelo 3D de otra persona <span class="opcional">(opcional)</span></legend>
         ${interruptor('usa-modelo-ajeno', 'Este proyecto usa un modelo 3D de otra persona', !!cm, 'Las licencias como CC BY piden nombrar al autor y la licencia.')}
         <div id="campos-licencia" ${cm ? '' : 'hidden'}>
           ${campo('cm-titulo', 'Nombre del modelo original', cm?.titulo)}
@@ -249,41 +284,29 @@ function abrirEditor(fila) {
         </div>
       </fieldset>
 
-      <fieldset class="bloque" data-solo="maqueta escenario">
-        <legend>Realidad aumentada</legend>
-        ${campo('escala', 'Escala', d.ar?.escala, { ayuda: 'Por ejemplo: 1:25 (la maqueta es 25 veces más chica que la obra real).' })}
-        ${campo('alt', 'Descripción breve del modelo', d.ar?.alt, { area: true, ayuda: 'Una frase que cuente qué se ve. La escuchan las personas con discapacidad visual.' })}
-        <h3 class="subtitulo">Botón «Ver interior»</h3>
-        <p class="ayuda">Cada toque al botón corta el modelo a una altura (por ejemplo, para quitar el techo). La altura se mide en centímetros desde la base de la maqueta. Si no agregas ninguno, el botón no aparece.</p>
-        ${campo('texto-completa', 'Texto del botón con el modelo completo', d.ar?.textoCompleta ?? 'Completa')}
-        <div class="filas" id="filas-cortes">${(d.ar?.cortes ?? []).map(filaCorte).join('')}</div>
-        <button type="button" class="boton-panel" data-agregar="corte">+ Agregar corte</button>
-      </fieldset>
-
-      <fieldset class="bloque" data-solo="video">
-        <legend>Video en realidad aumentada</legend>
-        ${campo('escala-video', 'Tamaño de la pantalla', d.ar?.escala ?? '60 cm de ancho')}
-        ${campo('alt-video', 'Descripción breve de la pantalla', d.ar?.alt ?? 'Televisor retro con una pantalla de cine que reproduce el video del proyecto', { area: true, ayuda: 'La escuchan las personas con discapacidad visual.' })}
-        <fieldset class="campo">
-          <legend>Modos que puede elegir el visitante</legend>
-          ${Object.entries(MODOS_VIDEO).map(([id, nombre]) => `
-            <label class="casilla"><input type="checkbox" name="modos" value="${id}" ${(d.ar?.modos ?? Object.keys(MODOS_VIDEO)).includes(id) ? 'checked' : ''}> ${nombre}</label>`).join('')}
-        </fieldset>
-        <fieldset class="campo">
-          <legend>Modo con el que empieza</legend>
-          ${['televisor', 'sin-televisor'].map(id => `
-            <label class="casilla"><input type="radio" name="modo-inicial" value="${id}" ${(d.ar?.modoInicial ?? 'televisor') === id ? 'checked' : ''}> ${MODOS_VIDEO[id]}</label>`).join('')}
-        </fieldset>
-      </fieldset>
-
-      <fieldset class="bloque" data-solo="video">
-        <legend>Letra de la canción</legend>
-        <p class="ayuda">Aparece completa en la ficha. Escribe cada sección (Verso 1, Coro…) con una línea de la letra por renglón.</p>
-        <div class="filas" id="filas-letra">${(d.letra ?? []).map(filaLetra).join('')}</div>
-        <button type="button" class="boton-panel" data-agregar="letra">+ Agregar sección</button>
-      </fieldset>
-
-      ${htmlArchivos(d)}
+      <details class="bloque avanzadas">
+        <summary>Opciones avanzadas <span class="opcional">(opcional)</span></summary>
+        ${nuevo ? `
+          <div class="campo">
+            <label for="f-id">Nombre en la dirección web</label>
+            <input id="f-id" name="direccion" pattern="[a-z0-9-]+" spellcheck="false" aria-describedby="vista-direccion">
+            <p class="ayuda" id="vista-direccion">Se crea solo con el título. Solo letras minúsculas, números y guiones. Después no se puede cambiar.</p>
+          </div>` : ''}
+        ${campo('ubicacion', 'Ubicación', d.ubicacion, { ayuda: 'Por ejemplo: Campus Samborondón.' })}
+        <div data-solo="video">
+          ${campo('escala-video', 'Tamaño de la pantalla', d.ar?.escala ?? '60 cm de ancho')}
+          <fieldset class="campo">
+            <legend>Modos que puede elegir el visitante</legend>
+            ${Object.entries(MODOS_VIDEO).map(([id, nombre]) => `
+              <label class="casilla"><input type="checkbox" name="modos" value="${id}" ${(d.ar?.modos ?? Object.keys(MODOS_VIDEO)).includes(id) ? 'checked' : ''}> ${nombre}</label>`).join('')}
+          </fieldset>
+          <fieldset class="campo">
+            <legend>Modo con el que empieza</legend>
+            ${['televisor', 'sin-televisor'].map(id => `
+              <label class="casilla"><input type="radio" name="modo-inicial" value="${id}" ${(d.ar?.modoInicial ?? 'televisor') === id ? 'checked' : ''}> ${MODOS_VIDEO[id]}</label>`).join('')}
+          </fieldset>
+        </div>
+      </details>
 
       <div class="editor-pie">
         <button type="button" class="boton-panel" id="cancelar-edicion">Cancelar</button>
@@ -301,6 +324,24 @@ function abrirEditor(fila) {
     if (e.target.name === 'tipo') mostrarSegunTipo(form);
     if (e.target.name === 'usa-modelo-ajeno') $('#campos-licencia', form).hidden = !e.target.checked;
     if (e.target.name === 'cm-licencia') $('#licencia-otra', form).hidden = e.target.value !== 'Otra';
+    if (e.target.name === 'modo-escala') $('#campo-escala', form).hidden = e.target.value !== 'exacta';
+    if (e.target.name === 'modo-cortes') {
+      $('#bloque-cortes', form).hidden = e.target.value !== 'con';
+      if (e.target.value === 'con' && !$('#filas-cortes .fila', form)) $('[data-agregar="corte"]', form).click();
+    }
+    if (e.target.name === 'galeria-estilo' || e.target.name === 'tipo') {
+      const titulo = form.elements['galeria-titulo'];
+      if (titulo?.dataset.sugerido) titulo.value = tituloGaleria(form.elements.tipo.value, form.elements['galeria-estilo'].value);
+    }
+  });
+  // Lo que escribe la persona deja de ser «sugerido»; las sugerencias siguen al título del proyecto
+  form.addEventListener('input', (e) => {
+    if (e.target.dataset.sugerido) delete e.target.dataset.sugerido;
+    if (e.target.name === 'titulo') {
+      const alt = form.elements.alt, altVideo = form.elements['alt-video'];
+      if (alt?.dataset.sugerido) alt.value = sugerenciaModelo(e.target.value);
+      if (altVideo?.dataset.sugerido) altVideo.value = sugerenciaVideo(e.target.value);
+    }
   });
   if (nuevo) {
     // La dirección se arma sola con el título, hasta que la persona la cambie a mano
@@ -341,6 +382,7 @@ function abrirEditor(fila) {
     e.preventDefault();
     await guardar(form);
   });
+  if (mantenerPosicion) return;
   $('#f-titulo', form).focus();
   window.scrollTo({ top: 0 });
 }
@@ -357,11 +399,8 @@ async function guardar(form) {
   const id = nuevo ? form.elements.direccion.value.trim() : fila.id;
   if (nuevo && !/^[a-z0-9-]+$/.test(id)) errores.push(['direccion', 'Usa solo letras minúsculas, números y guiones.']);
   if (nuevo && estado.proyectos.some(p => p.id === id)) errores.push(['direccion', 'Ya hay un proyecto con esta dirección. Cambia una palabra.']);
-  $$('#filas-cortes .fila', form).forEach((f, i) => {
+  if (form.elements['modo-cortes']?.value === 'con') $$('#filas-cortes .fila', form).forEach((f, i) => {
     if (!$('[name="corte-nombre"]', f).value.trim() || !(Number($('[name="corte-altura"]', f).value) > 0)) errores.push([null, `Al corte ${i + 1} le falta el nombre o la altura.`]);
-  });
-  (datos.galeria?.imagenes ?? []).forEach((img, i) => {
-    if (!img.alt) errores.push([null, `A la imagen ${i + 1} de la galería le falta la descripción breve.`]);
   });
   if (publicado) faltaParaPublicar(datos, carrera).forEach(f => errores.push([null, `Para publicarlo falta ${f} (o desmarca «Publicado»).`]));
   if (errores.length) {
@@ -385,8 +424,11 @@ async function guardar(form) {
     // Archivos que se dejaron de usar (reemplazados o quitados): se borran del almacenamiento
     const usados = new Set(archivosDe(datos));
     borrar([...antes, ...editando.subidos].filter(u => !usados.has(u)));
-    avisar(nuevo ? 'Proyecto creado. Ahora súbele su imagen y su modelo o video.' : 'Cambios guardados: ya se ven en la vitrina');
-    mostrarLista();
+    // Se queda en el mismo proyecto, en el mismo lugar de la página («← Volver a la lista» para salir)
+    const y = window.scrollY;
+    abrirEditor(estado.proyectos.find(p => p.id === id), { mantenerPosicion: true });
+    window.scrollTo({ top: y });
+    avisar(nuevo ? 'Proyecto creado ✓ Ahora súbele su imagen y su modelo o video.' : 'Cambios guardados ✓');
   } catch (error) {
     console.error(error);
     avisar(errorAlGuardar(error), 'error');
@@ -414,7 +456,10 @@ function leerFormulario(form, original) {
   if (creditos.length) d.creditos = creditos; else delete d.creditos;
 
   const galeria = leerGaleria(form);
-  if (galeria) d.galeria = galeria; else delete d.galeria;
+  if (galeria) {
+    galeria.imagenes.forEach((img, i) => { img.alt ||= `${galeria.titulo.replace(/s$/, '')} ${i + 1} de ${d.titulo}`; });
+    d.galeria = galeria;
+  } else delete d.galeria;
 
   if (form.elements['usa-modelo-ajeno'].checked) {
     const licencia = v('cm-licencia') === 'Otra' ? v('cm-licencia-otra') : v('cm-licencia');
@@ -431,7 +476,7 @@ function leerFormulario(form, original) {
   if (tipo === 'video') {
     d.ar.modelo ||= 'modelos/pantalla-cine.glb';     // el televisor del cine es el mismo para todos los videos
     d.ar.escala = v('escala-video');
-    d.ar.alt = v('alt-video');
+    d.ar.alt = v('alt-video') || sugerenciaVideo(d.titulo);
     d.ar.modos = $$('[name="modos"]:checked', form).map(c => c.value);
     if (!d.ar.modos.length) d.ar.modos = ['televisor'];
     d.ar.modoInicial = form.elements['modo-inicial'].value;
@@ -445,8 +490,9 @@ function leerFormulario(form, original) {
   } else {
     d.ar.modelo ??= '';
     d.ar.escala = v('escala');
-    d.ar.alt = v('alt');
-    d.ar.cortes = $$('#filas-cortes .fila', form).map(f => ({
+    if (form.elements['modo-escala'].value === 'auto') d.ar.escalaAutomatica = true; else delete d.ar.escalaAutomatica;
+    d.ar.alt = v('alt') || sugerenciaModelo(d.titulo);
+    d.ar.cortes = form.elements['modo-cortes'].value === 'sin' ? [] : $$('#filas-cortes .fila', form).map(f => ({
       nombre: $('[name="corte-nombre"]', f).value.trim(),
       altura: Math.round(Number($('[name="corte-altura"]', f).value) * 10) / 1000     // cm → metros
     }));
@@ -457,13 +503,30 @@ function leerFormulario(form, original) {
 }
 
 // ---------- Piezas del formulario ----------
-function campo(nombre, etiqueta, valor = '', { requerido = false, area = false, ayuda = '', tipo = 'text' } = {}) {
+function campo(nombre, etiqueta, valor = '', { requerido = false, opcional = !requerido, area = false, ayuda = '', tipo = 'text' } = {}) {
   const id = `f-${nombre}`;
   const control = area
     ? `<textarea id="${id}" name="${nombre}" rows="3">${escapar(valor ?? '')}</textarea>`
     : `<input id="${id}" name="${nombre}" type="${tipo}" value="${escapar(valor ?? '')}" ${requerido ? 'required aria-required="true"' : ''}>`;
-  return `<div class="campo"><label for="${id}">${etiqueta}${requerido ? ' <span class="requerido">(obligatorio)</span>' : ''}</label>${control}${ayuda ? `<p class="ayuda">${ayuda}</p>` : ''}</div>`;
+  const marca = requerido ? ' <span class="requerido">(obligatorio)</span>' : opcional ? ' <span class="opcional">(opcional)</span>' : '';
+  return `<div class="campo"><label for="${id}">${etiqueta}${marca}</label>${control}${ayuda ? `<p class="ayuda">${ayuda}</p>` : ''}</div>`;
 }
+
+/**
+ * D. Descripción para personas ciegas o con baja visión. Si está vacía, viene con una sugerencia
+ * («Modelo 3D de …») marcada como sugerida: no frena la publicación y la persona solo la mejora si quiere.
+ */
+function campoDescripcion(nombre, etiqueta, valor, sugerencia, ejemplo) {
+  const id = `f-${nombre}`;
+  const sugerido = !valor;
+  return `<div class="campo">
+    <label for="${id}">${etiqueta} <span class="etiqueta-sugerido">Sugerida: mejórala si quieres</span></label>
+    <textarea id="${id}" name="${nombre}" rows="2" ${sugerido ? 'data-sugerido="1"' : ''}>${escapar(valor || sugerencia)}</textarea>
+    <p class="ayuda">Escribe en una frase lo que se ve. Algunas personas usan programas que leen la página en voz alta, y este texto es lo que escuchan. Ejemplo: «${ejemplo}».</p>
+  </div>`;
+}
+const sugerenciaModelo = (titulo) => `Modelo 3D de ${titulo?.trim() || 'este proyecto'}`;
+const sugerenciaVideo = (titulo) => `Pantalla de cine que reproduce el video ${titulo?.trim() ? `«${titulo.trim()}»` : 'del proyecto'}`;
 
 function interruptor(nombre, etiqueta, activo, ayuda = '') {
   return `<div class="campo"><label class="interruptor"><input type="checkbox" role="switch" name="${nombre}" ${activo ? 'checked' : ''}><span class="interruptor-pista" aria-hidden="true"></span> ${etiqueta}</label>${ayuda ? `<p class="ayuda">${ayuda}</p>` : ''}</div>`;

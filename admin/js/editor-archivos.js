@@ -6,7 +6,7 @@
 // pero el proyecto cambia recién al tocar «Guardar cambios». Si se cancela, lo subido se borra.
 // =========================================================
 import { $, $$, escapar, avisar } from './util.js';
-import { subir, aWebP, extension, ErrorAmable } from './archivos.js';
+import { subir, aWebP, extension, ErrorAmable, LIMITES } from './archivos.js';
 
 let ctx;   // { form, datos, id(), alCambiar(), subidos:Set }
 
@@ -14,7 +14,8 @@ const urlVista = (ruta) => (!ruta ? '' : /^https?:/.test(ruta) ? ruta : `../${ru
 const nombreArchivo = (ruta) => decodeURIComponent((ruta ?? '').split('/').pop()).replace(/-[a-z0-9]{6,9}(\.\w+)$/, '$1');
 
 export function htmlArchivos(d) {
-  const g = d.galeria ?? { titulo: 'Planos', estilo: 'planos', imagenes: [] };
+  const g = d.galeria ?? { titulo: '', estilo: 'planos', imagenes: [] };
+  const tituloSugerido = !g.titulo;      // sin título: se sugiere uno según el tipo (y cambia si cambia el tipo)
   return `
     <fieldset class="bloque" id="bloque-archivos">
       <legend>Imágenes, modelo y video</legend>
@@ -49,6 +50,7 @@ export function htmlArchivos(d) {
             <p class="estado-archivo">${d.video ? `Actual: <strong>${escapar(nombreArchivo(d.video))}</strong>` : 'Todavía no tiene video.'}</p>
             <p class="ayuda">MP4 de hasta 50 MB (en 720p alcanza y carga mejor en el celular).</p>
             <label class="boton-panel boton-archivo">Elegir video…<input type="file" accept="video/mp4,video/webm" data-subir="video" class="solo-lector"></label>
+            <div class="panel-modelo panel-ayuda" role="status" hidden></div>
             <div class="progreso-archivo" hidden><progress max="1" value="0"></progress><span></span></div>
           </div>
         </div>
@@ -73,26 +75,34 @@ export function htmlArchivos(d) {
         </div>
       </div>
 
-      <h3 class="subtitulo">Galería (planos o páginas de un documento)</h3>
-      <p class="ayuda">Aparece en la ficha; al tocar una imagen se ve en grande con zoom. Cada imagen necesita una descripción breve (la escuchan las personas con discapacidad visual).</p>
-      <div class="campo"><label for="f-galeria-titulo">Título de la galería</label><input id="f-galeria-titulo" name="galeria-titulo" value="${escapar(g.titulo ?? '')}" placeholder="Planos"></div>
+      <h3 class="subtitulo">Galería de imágenes <span class="opcional">(opcional)</span></h3>
+      <p class="ayuda">Aparece en la ficha; al tocar una imagen se ve en grande con zoom. Cada imagen lleva una descripción para personas ciegas o con baja visión: el panel sugiere una y tú puedes mejorarla.</p>
+      <div class="campo"><label for="f-galeria-titulo">Título de la galería <span class="opcional">(opcional)</span></label><input id="f-galeria-titulo" name="galeria-titulo" value="${escapar(g.titulo || tituloGaleria(d.tipo ?? 'maqueta', g.estilo))}" ${tituloSugerido ? 'data-sugerido="1"' : ''}></div>
       <fieldset class="campo">
         <legend>Forma de las imágenes</legend>
         <label class="casilla"><input type="radio" name="galeria-estilo" value="planos" ${g.estilo !== 'documento' ? 'checked' : ''}> Planos (verticales u horizontales)</label>
         <label class="casilla"><input type="radio" name="galeria-estilo" value="documento" ${g.estilo === 'documento' ? 'checked' : ''}> Páginas de una presentación o documento (16:9)</label>
       </fieldset>
-      <div class="filas" id="filas-galeria">${(g.imagenes ?? []).map(filaGaleria).join('')}</div>
+      <div class="filas" id="filas-galeria">${(g.imagenes ?? []).map((img, i) => filaGaleria(img, i + 1)).join('')}</div>
       <label class="boton-panel boton-archivo">+ Agregar imágenes…<input type="file" accept="image/jpeg,image/png,image/webp" multiple data-subir="galeria" class="solo-lector"></label>
       <div class="progreso-archivo" id="progreso-galeria" hidden><progress max="1" value="0"></progress><span></span></div>
     </fieldset>`;
 }
 
-function filaGaleria(img) {
+/** Título sugerido de la galería: «Planos» en maquetas, «Galería» en escenarios y videos, «Documento» si son páginas */
+export function tituloGaleria(tipo, estilo) {
+  if (estilo === 'documento') return 'Documento';
+  return tipo === 'maqueta' ? 'Planos' : 'Galería';
+}
+
+/** Una imagen de la galería. sugerido: la descripción la escribió el panel (la persona puede mejorarla) */
+function filaGaleria(img, n = 1, sugerido = false) {
   return `<div class="fila fila-galeria" data-src="${escapar(img.src)}" data-mini="${escapar(img.mini ?? img.src)}">
     <img class="fila-mini" src="${escapar(urlVista(img.mini ?? img.src))}" alt="">
     <div class="fila-campos">
-      <label>Título <input name="galeria-img-titulo" value="${escapar(img.titulo ?? '')}" placeholder="Planta baja"></label>
-      <label>Descripción breve <textarea name="galeria-img-alt" rows="2" placeholder="Plano de la planta baja con la sala, la cocina y el garaje">${escapar(img.alt ?? '')}</textarea></label>
+      <label>Título <span class="opcional">(opcional)</span> <input name="galeria-img-titulo" value="${escapar(img.titulo ?? '')}" placeholder="Imagen ${n}"></label>
+      <label>Descripción de la imagen (para personas ciegas o con baja visión) <span class="etiqueta-sugerido">Sugerida: mejórala si quieres</span>
+        <textarea name="galeria-img-alt" rows="2" placeholder="Plano de la planta baja con la sala, la cocina y el garaje" ${sugerido ? 'data-sugerido="1"' : ''}>${escapar(img.alt ?? '')}</textarea></label>
     </div>
     <span class="fila-botones">
       <button type="button" class="boton-icono" data-fila="subir" aria-label="Subir esta imagen">↑</button>
@@ -119,6 +129,23 @@ export function leerGaleria(form) {
  */
 export function conectarArchivos({ form, datos, id, alCambiar, subidos }) {
   ctx = { form, datos, id, alCambiar, subidos };
+  // Panel del modelo: al elegir automático / exacta o cambiar el número, se muestra cuánto medirá
+  const medirMesa = (panel) => {
+    const info = panel.closest('.archivo')?.medidasModelo;
+    if (!info || !$('#medida-mesa', panel)) return;
+    const auto = panel.querySelector('[name="escala-modelo"]:checked')?.value === 'auto';
+    $('#escala-exacta', panel).hidden = auto;
+    const n = auto ? Math.max(1, Math.round(Math.max(info[0], info[2]) / 0.6)) : Math.max(1, Number($('#f-escala-modelo', panel).value) || 1);
+    const cm = info.map(v => (v / n) * 100);
+    const mayor = Math.max(cm[0], cm[2]);
+    $('#medida-mesa', panel).textContent = `Sobre la mesa medirá ${cm.map(v => v.toFixed(v < 10 ? 1 : 0).replace('.', ',')).join(' × ')} cm (ancho × alto × fondo)${auto ? `, escala 1:${n}` : ''}.` +
+      (mayor > 120 ? ' Es muy grande para una mesa: sube el número de la escala.' : mayor < 10 ? ' Es muy chica: baja el número de la escala.' : '');
+  };
+  form.addEventListener('input', (e) => { const p = e.target.closest('.panel-modelo'); if (p) medirMesa(p); });
+  form.addEventListener('change', (e) => { const p = e.target.closest('.panel-modelo'); if (p) medirMesa(p); });
+  // Cuando el panel cambia de contenido (no cuando cambia la medida: eso volvería a llamar sin fin)
+  const panelModelo = $('[data-archivo="modelo"] .panel-modelo', form);
+  if (panelModelo) new MutationObserver(() => medirMesa(panelModelo)).observe(panelModelo, { childList: true });
   $$('[data-subir]', form).forEach(input => input.addEventListener('change', async () => {
     const archivos = [...input.files];
     input.value = '';                       // para poder elegir el mismo archivo otra vez
@@ -168,64 +195,145 @@ const ACCIONES = {
   },
 
   async modelo([archivo], caja, progreso) {
-    const { medir, optimizar, fotoDelModelo } = await import('./modelo.js');
-    progreso('Leyendo el modelo…');
-    const info = await medir(archivo);
-    $('.progreso-archivo', caja).hidden = true;
-    // Panel para elegir la escala, con la medida que tendrá sobre la mesa
+    const m = await import('./modelo.js');
     const panel = $('.panel-modelo', caja);
-    const escalaActual = Number((ctx.form.elements.escala?.value ?? '').split(':')[1]) || sugerirEscala(info.medidas);
-    const m = info.medidas.map(v => v.toFixed(2).replace('.', ',')).join(' × ');
-    panel.hidden = false;
-    panel.innerHTML = `
-      <p><strong>${escapar(archivo.name)}</strong> · ${info.mb.toFixed(1).replace('.', ',')} MB · medidas reales: ${m} m</p>
-      <div class="campo"><label for="f-escala-modelo">Escala de la maqueta</label>
-        <div class="campo-con-boton"><span class="prefijo-escala">1 :</span><input id="f-escala-modelo" type="number" min="1" max="2000" step="1" inputmode="numeric" value="${escalaActual}"></div>
-        <p class="ayuda" id="medida-mesa" aria-live="polite"></p></div>
-      ${ctx.datos.ar?.puntos?.length ? '<p class="aviso-suave">Este proyecto ya tiene puntos de información: con un modelo nuevo quizás haya que moverlos.</p>' : ''}
-      <div class="campo-con-boton"><button type="button" class="boton-panel principal" data-modelo="si">Preparar y subir</button><button type="button" class="boton-panel" data-modelo="no">Cancelar</button></div>`;
-    const entrada = $('#f-escala-modelo', panel);
-    const actualizar = () => {
-      const n = Math.max(1, Number(entrada.value) || 1);
-      const cm = info.medidas.map(v => (v / n) * 100);
-      const texto = cm.map(v => v.toFixed(v < 10 ? 1 : 0).replace('.', ',')).join(' × ');
-      const mayor = Math.max(cm[0], cm[2]);
-      $('#medida-mesa', panel).textContent = `Sobre la mesa medirá ${texto} cm (ancho × alto × fondo).` +
-        (mayor > 120 ? ' Es muy grande para una mesa: sube el número de la escala.' : mayor < 10 ? ' Es muy chica: baja el número de la escala.' : '');
+    const barra = $('.progreso-archivo', caja);
+    const prep = new m.Preparador();
+    // Mientras trabaja se puede cancelar (detiene el trabajo en segundo plano al instante)
+    const cancelar = document.createElement('button');
+    cancelar.type = 'button';
+    cancelar.className = 'enlace boton-cancelar-trabajo';
+    cancelar.textContent = 'Cancelar';
+    cancelar.addEventListener('click', () => prep.cancelar());
+    barra.append(cancelar);
+    // Muestra opciones en el panel y espera el botón que toque la persona
+    const elegir = (html) => {
+      panel.hidden = false;
+      panel.innerHTML = html;
+      $('button', panel)?.focus();
+      return new Promise(r => panel.addEventListener('click', function al(e) {
+        const b = e.target.closest('[data-modelo]');
+        if (b) { panel.removeEventListener('click', al); r(b.dataset.modelo); }
+      }));
     };
-    entrada.addEventListener('input', actualizar);
-    actualizar();
-    entrada.focus();
-    const decision = await new Promise(r => panel.addEventListener('click', (e) => { const b = e.target.closest('[data-modelo]'); if (b) r(b.dataset.modelo); }));
-    panel.hidden = true;
-    if (decision !== 'si') return;
-    const escala = Math.max(1, Number(entrada.value) || 1);
-    const resultado = await optimizar(archivo, { escala, alPaso: (t) => progreso(t) });
-    const kb = (b) => `${Math.round(b.size / 1024)} KB`;
-    progreso('Tomando una foto del modelo…');
-    let foto = null;
-    try { foto = await fotoDelModelo(resultado.principal, { camara: ctx.datos.ar?.camara ?? '25deg 62deg auto' }); } catch (e) { console.warn('Sin foto del modelo', e); }
-    const base = ctx.id();
-    ctx.datos.ar ??= { puntos: [] };
-    ctx.datos.ar.modelo = await subirYAnotar('modelos', `${base}.glb`, resultado.principal, progreso, `Subiendo el modelo (${kb(resultado.principal)})…`);
-    ctx.datos.ar.modeloHero = await subirYAnotar('modelos', `${base}-carrusel.glb`, resultado.liviano, progreso, 'Subiendo la versión del carrusel…');
-    if (foto) {
-      ctx.datos.ar.poster = await subirYAnotar('imagenes', `${base}-foto.webp`, foto, progreso, 'Subiendo la foto…');
-      ponerVista(caja, ctx.datos.ar.poster);
-      if (!ctx.datos.portada) {
-        ctx.datos.portada = ctx.datos.ar.poster;
-        ponerVista($('[data-archivo="portada"]', ctx.form), ctx.datos.portada);
+    const terminar = () => { panel.hidden = true; cancelar.remove(); prep.cerrar(); };
+    const mb = (x) => `${x.toFixed(1).replace('.', ',')} MB`;
+    try {
+      const info = await prep.abrir(archivo, (t) => progreso(t));
+      caja.medidasModelo = info.medidas;
+      barra.hidden = true;
+
+      // 1. Tamaño sobre la mesa
+      const automatica = (ctx.form.elements['modo-escala']?.value ?? 'auto') === 'auto';
+      const exacta = Number((ctx.form.elements.escala?.value ?? '').split(':')[1]) || m.escalaAutomatica(info.medidas);
+      const reales = info.medidas.map(v => v.toFixed(v < 10 ? 2 : 0).replace('.', ',')).join(' × ');
+      const decision = await elegir(`
+        <p><strong>${escapar(archivo.name)}</strong> · ${mb(prep.mbOriginal)} · medidas reales: ${reales} m</p>
+        <fieldset class="campo"><legend>Tamaño sobre la mesa</legend>
+          <label class="casilla"><input type="radio" name="escala-modelo" value="auto" ${automatica ? 'checked' : ''}> Automático: que mida unos 60 cm (recomendado)</label>
+          <label class="casilla"><input type="radio" name="escala-modelo" value="exacta" ${automatica ? '' : 'checked'}> Escala exacta</label>
+          <div class="campo-con-boton" id="escala-exacta" ${automatica ? 'hidden' : ''}><span class="prefijo-escala">1 :</span><input id="f-escala-modelo" type="number" min="1" max="100000" step="1" inputmode="numeric" value="${exacta}" aria-label="Escala exacta, 1 a"></div>
+          <p class="ayuda" id="medida-mesa" aria-live="polite"></p>
+        </fieldset>
+        ${ctx.datos.ar?.puntos?.length ? '<p class="aviso-suave">Este proyecto ya tiene puntos de información: con un modelo nuevo quizás haya que moverlos.</p>' : ''}
+        <div class="campo-con-boton"><button type="button" class="boton-panel principal" data-modelo="si">Preparar</button><button type="button" class="boton-panel" data-modelo="no">Cancelar</button></div>`);
+      if (decision !== 'si') return terminar();
+      const auto = panel.querySelector('[name="escala-modelo"]:checked').value === 'auto';
+      const escala = auto ? m.escalaAutomatica(info.medidas) : Math.max(1, Number($('#f-escala-modelo', panel).value) || 1);
+      panel.hidden = true;
+
+      // 2. Preparar
+      let final = await prep.preparar({ escala, maxTextura: 1024, calidad: 0.9 }, (t) => progreso(t));
+      barra.hidden = true;
+
+      // 3. ¿Pesado? Ofrecer reducir
+      if (m.estaPesado(final)) {
+        const puedeAsi = final.mb <= m.MAXIMO_MB;
+        const motivo = final.mb > m.OBJETIVO_MB
+          ? `Ya preparado pesa <strong>${mb(final.mb)}</strong>. En un celular de gama media conviene menos de ${m.OBJETIVO_MB} MB${puedeAsi ? '' : ` (y el máximo permitido es ${m.MAXIMO_MB} MB)`}.`
+          : `Tiene mucho detalle (${Math.round(final.triangulos / 1000)} mil triángulos): en el celular podría ir lento.`;
+        const r = await elegir(`
+          <p>${motivo}</p>
+          <div class="campo-con-boton">
+            <button type="button" class="boton-panel principal" data-modelo="reducir">Reducir tamaño automáticamente (recomendado)</button>
+            ${puedeAsi ? '<button type="button" class="boton-panel" data-modelo="asi">Subir así</button>' : ''}
+            <button type="button" class="boton-panel" data-modelo="no">Cancelar</button>
+          </div>`);
+        if (r === 'no') return terminar();
+        if (r === 'reducir') {
+          panel.hidden = true;
+          const reduccion = await m.reducir(prep, final, { escala, alPaso: (t) => progreso(t) });
+          barra.hidden = true;
+          // 4. Qué cambia, en palabras simples, y vista previa para aceptar o cancelar
+          await m.cargarModelViewer();
+          const url = URL.createObjectURL(reduccion.resultado.blob);
+          const cabe = reduccion.resultado.mb <= m.MAXIMO_MB;
+          const r2 = await elegir(`
+            <p><strong>Esto va a cambiar:</strong></p>
+            <ul class="lista-cambios">${reduccion.cambios.map(c => `<li>${escapar(c)}</li>`).join('')}</ul>
+            <model-viewer class="vista-previa-modelo" src="${url}" camera-controls auto-rotate shadow-intensity="1" touch-action="pan-y" alt="Vista previa del modelo reducido"></model-viewer>
+            <p class="ayuda">Gíralo con el dedo o el mouse para revisarlo antes de aceptar.</p>
+            <div class="campo-con-boton">
+              ${cabe ? '<button type="button" class="boton-panel principal" data-modelo="si">Aceptar y subir</button>' : ''}
+              <button type="button" class="boton-panel" data-modelo="no">Cancelar</button>
+            </div>`);
+          URL.revokeObjectURL(url);
+          if (r2 !== 'si') return terminar();
+          final = reduccion.resultado;
+        }
+        panel.hidden = true;
       }
+
+      // 5. Versión del carrusel, foto y subida
+      const liviano = await m.versionCarrusel(prep, { escala, alPaso: (t) => progreso(`Versión del carrusel: ${t}`) });
+      progreso('Tomando una foto del modelo…');
+      let foto = null;
+      try { foto = await m.fotoDelModelo(final.blob, { camara: ctx.datos.ar?.camara ?? '25deg 62deg auto' }); } catch (e) { console.warn('Sin foto del modelo', e); }
+      cancelar.remove();
+      const base = ctx.id();
+      ctx.datos.ar ??= { puntos: [] };
+      ctx.datos.ar.modelo = await subirYAnotar('modelos', `${base}.glb`, final.blob, progreso, `Subiendo el modelo (${mb(final.mb)})…`);
+      ctx.datos.ar.modeloHero = await subirYAnotar('modelos', `${base}-carrusel.glb`, liviano.blob, progreso, 'Subiendo la versión del carrusel…');
+      if (foto) {
+        ctx.datos.ar.poster = await subirYAnotar('imagenes', `${base}-foto.webp`, foto, progreso, 'Subiendo la foto…');
+        ponerVista(caja, ctx.datos.ar.poster);
+        if (!ctx.datos.portada) {
+          ctx.datos.portada = ctx.datos.ar.poster;
+          ponerVista($('[data-archivo="portada"]', ctx.form), ctx.datos.portada);
+        }
+      }
+      // La escala elegida queda en el formulario (se ve en la ficha)
+      ctx.datos.ar.escalaAutomatica = auto;
+      if (ctx.form.elements.escala) ctx.form.elements.escala.value = `1:${escala}`;
+      const radio = ctx.form.querySelector(`[name="modo-escala"][value="${auto ? 'auto' : 'exacta'}"]`);
+      if (radio) { radio.checked = true; radio.dispatchEvent(new Event('change', { bubbles: true })); }
+      const cm = final.medidas.map(v => Math.round(v * 100)).join(' × ');
+      $('.estado-archivo', caja).innerHTML = `Nuevo: <strong>${escapar(archivo.name)}</strong> → maqueta de ${cm} cm, ${mb(final.mb)}`;
+      progreso('Listo: modelo preparado y subido. Toca «Guardar cambios».', 1);
+      prep.cerrar();
+    } catch (e) {
+      terminar();
+      barra.hidden = true;
+      if (e instanceof m.Cancelado) { avisar('Cancelado: no se subió nada.'); return; }
+      throw e;
     }
-    // La escala elegida queda escrita en el formulario (se ve en la ficha)
-    if (ctx.form.elements.escala) ctx.form.elements.escala.value = `1:${escala}`;
-    const cm = resultado.medidas.map(v => Math.round(v * 100)).join(' × ');
-    $('.estado-archivo', caja).innerHTML = `Nuevo: <strong>${escapar(archivo.name)}</strong> → maqueta de ${cm} cm, ${kb(resultado.principal)}`;
-    progreso('Listo: modelo preparado y subido. Toca «Guardar cambios».', 1);
   },
 
   async video([archivo], caja, progreso) {
     if (!['video/mp4', 'video/webm'].includes(archivo.type)) throw new ErrorAmable('Usa un video MP4 (o WebM). Si tienes un .mov, expórtalo en MP4.');
+    const pesoMB = archivo.size / 1024 / 1024;
+    const ayuda = $('.panel-ayuda', caja);
+    ayuda.hidden = true;
+    if (pesoMB > LIMITES.videos) {
+      // Muy pesado: se explica cómo achicarlo con un programa gratuito (los pasos quedan a la vista)
+      ayuda.innerHTML = '<p><strong>El video pesa ' + pesoMB.toFixed(1).replace('.', ',') + ' MB y el máximo es ' + LIMITES.videos + ' MB.</strong> Para achicarlo gratis desde una computadora:</p>' +
+        '<ol class="pasos"><li>Descarga <strong>HandBrake</strong> (handbrake.fr) e instálalo.</li><li>Ábrelo y arrastra el video.</li>' +
+        '<li>En <strong>Preset</strong> elige <strong>General → Fast 720p30</strong>.</li><li>Toca <strong>Start</strong> (Iniciar) y espera.</li>' +
+        '<li>Sube aquí el archivo nuevo: suele quedar entre 20 y 40 MB y se ve bien en el celular.</li></ol>';
+      ayuda.hidden = false;
+      ayuda.scrollIntoView({ block: 'nearest' });
+      return;
+    }
     ctx.datos.video = await subirYAnotar('videos', `video.${archivo.type === 'video/webm' ? 'webm' : 'mp4'}`, archivo, progreso, 'Subiendo el video…');
     $('.estado-archivo', caja).innerHTML = `Nuevo: <strong>${escapar(archivo.name)}</strong>`;
     progreso('Listo: video subido. Toca «Guardar cambios».', 1);
@@ -267,17 +375,12 @@ const ACCIONES = {
       const n = filas.children.length + 1;
       const src = await subirYAnotar('imagenes', `galeria-${n}.${extension(grande)}`, grande, progreso, `Subiendo${de}…`);
       const urlMini = await subirYAnotar('imagenes', `galeria-${n}-mini.${extension(mini)}`, mini, progreso, `Subiendo${de}…`);
-      const titulo = archivo.name.replace(/\.\w+$/, '').replace(/[_-]+/g, ' ');
-      filas.insertAdjacentHTML('beforeend', filaGaleria({ src, mini: urlMini, titulo, alt: '' }));
+      // Título vacío (no el nombre del archivo) y una descripción sugerida que no frena la publicación
+      const proyecto = ctx.form.elements.titulo?.value.trim() || 'el proyecto';
+      const tipo = (ctx.form.elements['galeria-titulo']?.value.trim() || 'Imagen').replace(/s$/, '');
+      filas.insertAdjacentHTML('beforeend', filaGaleria({ src, mini: urlMini, titulo: '', alt: `${tipo} ${n} de ${proyecto}` }, n, true));
     }
-    filas.lastElementChild?.querySelector('[name="galeria-img-alt"]')?.focus();
-    progreso(`Listo: ${archivos.length === 1 ? 'imagen agregada' : `${archivos.length} imágenes agregadas`}. Escribe su descripción y toca «Guardar cambios».`, 1);
+    progreso(`Listo: ${archivos.length === 1 ? 'imagen agregada' : `${archivos.length} imágenes agregadas`}, con una descripción sugerida. Mejórala si quieres y toca «Guardar cambios».`, 1);
   }
 };
 
-/** Una escala que deje el modelo de unos 60 cm de lado */
-function sugerirEscala([x, , z]) {
-  const mayor = Math.max(x, z);
-  if (mayor <= 1.2) return 1;
-  return Math.max(1, Math.round(mayor / 0.6));
-}

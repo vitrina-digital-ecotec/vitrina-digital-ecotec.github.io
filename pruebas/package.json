@@ -4,7 +4,7 @@
   "description": "Pruebas automáticas de la Vitrina Digital. Instalar: npm install · Correr: npm test",
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test --test-concurrency=2"
   },
   "devDependencies": {
     "jsqr": "1.4.0",
