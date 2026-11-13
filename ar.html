@@ -249,6 +249,20 @@
     </div>
   </div>
 
+  <!-- Android con un navegador sin AR (Brave, Firefox, el de WhatsApp/Instagram/Facebook…): invita a abrir Chrome (js/navegador.js) -->
+  <div class="ayuda-ios aviso-navegador" id="aviso-navegador" role="dialog" aria-modal="true" aria-labelledby="aviso-navegador-titulo" hidden>
+    <div class="ayuda-ios-tarjeta">
+      <h2 id="aviso-navegador-titulo">Ábrelo en Chrome</h2>
+      <p class="aviso-navegador-texto" id="aviso-navegador-texto">Tu navegador no permite realidad aumentada. Ábrelo en Chrome para verla en tu espacio.</p>
+      <p class="aviso-navegador-copiado" id="aviso-navegador-copiado" role="status"></p>
+      <div class="ayuda-ios-botones">
+        <button type="button" class="boton-linea" id="aviso-navegador-seguir">Seguir en 3D</button>
+        <button type="button" class="boton-linea" id="aviso-navegador-copiar">Copiar enlace</button>
+        <a class="boton-ar-grande" id="aviso-navegador-chrome" href="#">Abrir en Chrome</a>
+      </div>
+    </div>
+  </div>
+
   <!-- Reproductor propio a pantalla completa (iPhone y dispositivos sin WebXR). Usa el MISMO video. -->
   <div class="cine-completo" id="cine-completo" role="dialog" aria-modal="true" aria-label="Video a pantalla completa" hidden>
     <div class="cine-completo-barra">

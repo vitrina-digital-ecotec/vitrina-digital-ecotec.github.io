@@ -379,6 +379,13 @@ body.cine-abierto { overflow: hidden; }
 .ayuda-ios-botones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .ayuda-ios .boton-ar-grande { background: var(--azul); color: #fff; }
 
+/* Android con un navegador sin AR: botones apilados, «Abrir en Chrome» arriba */
+.aviso-navegador .ayuda-ios-tarjeta .aviso-navegador-texto { font-size: 16px; line-height: 1.45; color: var(--tinta); margin: 0; }
+.aviso-navegador .ayuda-ios-tarjeta .aviso-navegador-copiado { color: var(--azul); font-weight: 600; overflow-wrap: anywhere; }
+.aviso-navegador .aviso-navegador-copiado:empty { display: none; }
+.aviso-navegador .ayuda-ios-botones { flex-direction: column-reverse; align-items: stretch; }
+.aviso-navegador .boton-linea, .aviso-navegador .boton-ar-grande { justify-content: center; padding: 8px 22px; }
+
 /* Monitores: la tarjeta y el asistente pasan a un panel lateral */
 @media (min-width: 900px) {
   .barra-ar { padding: 16px 32px; }

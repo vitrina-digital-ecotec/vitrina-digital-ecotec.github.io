@@ -19,7 +19,9 @@ import { responder } from './asistente.js';
 import { registrar } from './metricas.js';
 import { URL_PUBLICA } from './config.js';
 import { diagnosticoActivo, medirARDeModelViewer } from './diagnostico.js';
+import { infoNavegador, prepararAvisoNavegador } from './navegador.js';
 
+const navegador = infoNavegador();
 const esIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
@@ -305,6 +307,14 @@ if (esVideo) {
     console.error(e);
     mostrarEstado('No se pudo preparar el video. Revisa tu conexión e intenta de nuevo.', 0);
   });
+  // Android sin WebXR (Brave, Firefox, navegador de WhatsApp…): se invita a abrir Chrome.
+  // Si la persona se queda, el video se ve igual a pantalla completa con «Ver con la letra».
+  const revisarNavegador = () => {
+    if (!navegador.android || visor.canActivateAR) return;
+    registrar('navegador_no_compatible', { proyecto: proyecto.id, navegador: navegador.nombre });
+    prepararAvisoNavegador({ textoSeguir: 'Ver el video aquí' }).mostrar();
+  };
+  visor.loaded ? revisarNavegador() : visor.addEventListener('load', revisarNavegador, { once: true });
 }
 
 // ---------------------------------------------------------
@@ -319,9 +329,14 @@ if (esMaqueta) {
   if (forzarClasica && diagnosticoActivo()) medirARDeModelViewer(visor);
   // Se revisa el soporte SIN descargar three.js (solo se descarga si se va a usar)
   let soporta = false;
-  if (!forzarClasica && window.isSecureContext && navigator.xr?.isSessionSupported) {
+  if (window.isSecureContext && navigator.xr?.isSessionSupported) {
     try { soporta = await navigator.xr.isSessionSupported('immersive-ar'); } catch { soporta = false; }
   }
+  // Android sin WebXR (Brave, Firefox, navegador de WhatsApp/Instagram/Facebook…):
+  // al tocar «Ver en mi espacio» se prueba Scene Viewer y, si no abre, se invita a abrir Chrome.
+  const sinWebXR = navegador.android && !soporta && !modoPrueba;
+  const avisoNavegador = sinWebXR ? prepararAvisoNavegador() : null;
+  if (sinWebXR) registrar('navegador_no_compatible', { proyecto: proyecto.id, navegador: navegador.nombre });
   if (modoPrueba || (soporta && !forzarClasica)) {
     try {
       const { crearARPropia } = await import('./ar-propia.js');
@@ -344,7 +359,7 @@ if (esMaqueta) {
 
   const entrar = document.getElementById('entrar-ar');
   const mostrarEntrada = () => {
-    if (arPropia || visor.canActivateAR) {
+    if (arPropia || visor.canActivateAR || sinWebXR) {
       entrar.hidden = false;
     } else {
       // Computadora (o celular sin AR): adelanto + QR para abrirla en el celular
@@ -364,9 +379,35 @@ if (esMaqueta) {
       mostrarEstado('Abriendo la AR estándar…', 2500);
     }
     if (esIOS) { document.getElementById('ayuda-ios').hidden = false; document.getElementById('ayuda-ios-abrir').focus(); return; }
+    if (sinWebXR) { probarSceneViewer(); return; }
     if (visor.canActivateAR) visor.activateAR();
     else mostrarEstado(`Este dispositivo no puede abrir la AR. Puedes seguir viendo ${objeto.la} en 3D.`, 5000);
   });
+
+  /**
+   * Respaldo en Android sin WebXR: Scene Viewer (la app de AR de Google, sin puntos ni asistente).
+   * Si se abre, esta página pasa a segundo plano. Si en 3 s no pasó nada o falló → aviso «Abrir en Chrome».
+   * En los navegadores internos de las apps no se intenta: ahí Scene Viewer deja una página de error.
+   */
+  function probarSceneViewer() {
+    if (!visor.canActivateAR || navegador.interno) { avisoNavegador.mostrar(); return; }
+    let listo = false;
+    const alOcultarse = () => { if (document.hidden) terminar(true); };
+    const alFallar = (e) => { if (e.detail.status === 'failed') terminar(false); };
+    const reloj = setTimeout(() => terminar(false), 3000);
+    function terminar(abrio) {
+      if (listo) return;
+      listo = true;
+      clearTimeout(reloj);
+      document.removeEventListener('visibilitychange', alOcultarse);
+      visor.removeEventListener('ar-status', alFallar);
+      if (abrio) registrar('ar_iniciada', { proyecto: proyecto.id, modo: 'scene-viewer' });
+      else { ocultarEstado(); avisoNavegador.mostrar(); }
+    }
+    document.addEventListener('visibilitychange', alOcultarse);
+    visor.addEventListener('ar-status', alFallar);
+    visor.activateAR();
+  }
 
   // iPhone: explicación de los gestos de Quick Look antes de abrirlo
   document.getElementById('ayuda-ios-abrir').addEventListener('click', () => {
