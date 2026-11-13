@@ -498,3 +498,13 @@ Resultado: `cafeteria.glb` 407 KB y `cafeteria-hero.glb` 397 KB, 8 llamadas de d
 - **Ajustes** (`ajustes.js`): periodo actual, interruptor de la **AR propia** y **Descargar respaldo**: un `proyectos.json` con lo publicado para actualizar el Plan B en GitHub (los pasos están en el panel).
 - **Vista previa** (`js/datos.js`): `proyecto.html?id=…&vista=previa` muestra también lo oculto **solo** si ese navegador tiene la sesión del admin (usa su token; RLS lo permite). Aparece una barra amarilla con «Salir de la vista previa». Lo oculto no se guarda en la copia local.
 - Prueba: `admin-proyectos.test.mjs`, con el Supabase fingido de `supabase-falso.mjs`.
+
+### Archivos y modelos (parte 4) — `admin/js/archivos.js`, `modelo.js`, `editor-archivos.js`
+En el editor de cada proyecto, sección **«Imágenes, modelo y video»**. Cada archivo se sube apenas se elige (con barra de progreso) a Supabase Storage, en `<bucket>/<id del proyecto>/<nombre>-<código>.<ext>` (el código cambia en cada subida: el navegador nunca muestra una versión vieja). El proyecto cambia al tocar **Guardar cambios**.
+- **Portada:** se achica a 1200 px y se pasa a WebP en el navegador.
+- **Modelo 3D (.glb):** se optimiza **en el navegador** con gltf-transform 4.2.1 y meshoptimizer 0.22.0 (las mismas versiones que `herramientas/maqueta`): centrado, base en el piso, **a escala** (el panel muestra las medidas reales y cuánto medirá sobre la mesa), piezas y materiales unidos, texturas WebP de 1024 px (paletas sin pérdida) y compresión meshopt. También crea la **versión del carrusel** (texturas de 512 px y, si pasa de 60 000 triángulos, menos triángulos) y una **foto** del modelo para el póster (y la portada, si no hay). El original **no se sube**. Con la Cafetería original (1,6 MB) tarda unos 2,5 s y queda en 610 KB + 397 KB.
+- **Galería:** varias imágenes a la vez (grande de 2000 px + miniatura de 640 px), título, forma (planos o páginas 16:9), orden y una **descripción breve obligatoria** por imagen.
+- **Video:** MP4/WebM de hasta 50 MB; **póster** (960 × 540, y la pantalla del televisor del carrusel, dada vuelta como la pide su textura); **subtítulos .vtt** (se revisa que empiecen con `WEBVTT`).
+- **Limpieza:** al guardar se borran del almacenamiento los archivos reemplazados o quitados; al cancelar, lo que se subió en esa edición; al eliminar un proyecto, su carpeta. Los archivos que vienen con el sitio (`modelos/…`, `img/…`) nunca se borran.
+- Prueba: `admin-archivos.test.mjs` (el Supabase fingido también guarda archivos).
+- Límite conocido: los modelos con «doble cara» que solo se ven bien desde un lado (como la Cafetería original) pueden necesitar el arreglo de `limpiar-cafeteria.mjs`; si en la AR desaparece un muro, avísame.

@@ -128,7 +128,8 @@ test('video: modos, modo inicial y letra; los créditos de la canción pasan a l
   const { pagina, contexto, sb } = await abrirPanel();
   await fila(pagina, 'cuentos-y-espias').locator('[data-accion="editar"]').click();
   assert.ok(await pagina.locator('[data-solo="video"]').first().isVisible());
-  assert.ok(await pagina.locator('[data-solo="maqueta escenario"]').isHidden());
+  assert.ok(await pagina.locator('fieldset[data-solo="maqueta escenario"]').isHidden());
+  assert.ok(await pagina.locator('[data-archivo="modelo"]').isHidden(), 'un video no sube modelo 3D');
   assert.equal(await pagina.locator('.opcion:has([value="maqueta"]) input').isDisabled(), true);
   await pagina.locator('.casilla:has([value="360"])').click();          // quitar 360°
   await pagina.locator('.casilla:has([value="sin-televisor"]) [name="modo-inicial"]').check();

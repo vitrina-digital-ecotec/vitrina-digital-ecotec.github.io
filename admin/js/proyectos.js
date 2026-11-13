@@ -9,6 +9,8 @@
 import { $, $$, escapar, slug, avisar, confirmar, errorAlGuardar } from './util.js';
 import { estado, crearProyecto, guardarProyecto, borrarProyecto, intercambiarOrden } from './datos-panel.js';
 import { portadaDe, tipoDe } from '../../js/datos.js';
+import { htmlArchivos, conectarArchivos, leerGaleria } from './editor-archivos.js';
+import { borrar, borrarCarpeta, archivosDe } from './archivos.js';
 
 const TIPOS = {
   maqueta: { nombre: 'Maqueta', ayuda: 'Arquitectura: se pone sobre la mesa a escala, con «Ver interior».' },
@@ -130,6 +132,7 @@ async function eliminar(fila) {
   });
   if (!si) return;
   await borrarProyecto(fila.id);
+  borrarCarpeta(fila.id).catch(e => console.warn('No se pudieron borrar sus archivos', e));
   avisar('Proyecto eliminado');
 }
 
@@ -280,11 +283,7 @@ function abrirEditor(fila) {
         <button type="button" class="boton-panel" data-agregar="letra">+ Agregar sección</button>
       </fieldset>
 
-      <fieldset class="bloque">
-        <legend>Archivos</legend>
-        <p class="ayuda">Las imágenes, el modelo 3D, el video y los subtítulos se van a subir desde aquí en la próxima actualización del panel. Por ahora se muestran los que ya tiene:</p>
-        <ul class="archivos-actuales">${listaArchivos(d)}</ul>
-      </fieldset>
+      ${htmlArchivos(d)}
 
       <div class="editor-pie">
         <button type="button" class="boton-panel" id="cancelar-edicion">Cancelar</button>
@@ -293,6 +292,8 @@ function abrirEditor(fila) {
     </form>`;
 
   const form = $('#editor', raiz);
+  editando.subidos = new Set();          // archivos subidos en esta edición (si se cancela, se borran)
+  conectarArchivos({ form, datos: d, id: () => (nuevo ? form.elements.direccion.value.trim() : fila.id), alCambiar: () => { sucio = true; }, subidos: editando.subidos });
   mostrarSegunTipo(form);
   form.addEventListener('input', () => { sucio = true; });
   form.addEventListener('change', (e) => {
@@ -331,6 +332,7 @@ function abrirEditor(fila) {
   const salir = async () => {
     if (sucio && !await confirmar({ titulo: '¿Salir sin guardar?', texto: 'Los cambios que hiciste se perderán.', boton: 'Salir sin guardar', peligro: true })) return;
     sucio = false;
+    borrar([...editando.subidos]);       // lo que se subió y no se guardó
     mostrarLista();
   };
   $('#volver-lista', form).addEventListener('click', salir);
@@ -358,6 +360,9 @@ async function guardar(form) {
   $$('#filas-cortes .fila', form).forEach((f, i) => {
     if (!$('[name="corte-nombre"]', f).value.trim() || !(Number($('[name="corte-altura"]', f).value) > 0)) errores.push([null, `Al corte ${i + 1} le falta el nombre o la altura.`]);
   });
+  (datos.galeria?.imagenes ?? []).forEach((img, i) => {
+    if (!img.alt) errores.push([null, `A la imagen ${i + 1} de la galería le falta la descripción breve.`]);
+  });
   if (publicado) faltaParaPublicar(datos, carrera).forEach(f => errores.push([null, `Para publicarlo falta ${f} (o desmarca «Publicado»).`]));
   if (errores.length) {
     for (const [nombre, texto] of errores) {
@@ -373,9 +378,13 @@ async function guardar(form) {
   boton.disabled = true;
   boton.textContent = 'Guardando…';
   try {
+    const antes = nuevo ? [] : archivosDe(fila.datos);
     if (nuevo) await crearProyecto({ id, carrera, publicado, datos });
     else await guardarProyecto(fila.id, { carrera, publicado, datos });
     sucio = false;
+    // Archivos que se dejaron de usar (reemplazados o quitados): se borran del almacenamiento
+    const usados = new Set(archivosDe(datos));
+    borrar([...antes, ...editando.subidos].filter(u => !usados.has(u)));
     avisar(nuevo ? 'Proyecto creado. Ahora súbele su imagen y su modelo o video.' : 'Cambios guardados: ya se ven en la vitrina');
     mostrarLista();
   } catch (error) {
@@ -403,6 +412,9 @@ function leerFormulario(form, original) {
     .map(f => ({ etiqueta: $('[name="credito-etiqueta"]', f).value.trim(), texto: $('[name="credito-texto"]', f).value.trim() }))
     .filter(c => c.etiqueta || c.texto);
   if (creditos.length) d.creditos = creditos; else delete d.creditos;
+
+  const galeria = leerGaleria(form);
+  if (galeria) d.galeria = galeria; else delete d.galeria;
 
   if (form.elements['usa-modelo-ajeno'].checked) {
     const licencia = v('cm-licencia') === 'Otra' ? v('cm-licencia-otra') : v('cm-licencia');
@@ -486,18 +498,6 @@ function filaLetra(b) {
     ${botonesFila('esta sección')}</div>`;
 }
 
-function listaArchivos(d) {
-  const filas = [
-    ['Imagen de portada', d.portada],
-    d.tipo === 'video' || d.video ? ['Video', d.video] : ['Modelo 3D', d.ar?.modelo],
-    d.tipo === 'video' || d.video ? ['Póster del video', d.poster] : ['Modelo liviano del carrusel', d.ar?.modeloHero],
-    d.subtitulos ? ['Subtítulos (.vtt)', d.subtitulos] : null,
-    d.galeria?.imagenes?.length ? [d.galeria.titulo ?? 'Galería', `${d.galeria.imagenes.length} imágenes`] : null
-  ].filter(Boolean);
-  // El modelo liviano es opcional: sin él, el carrusel usa el modelo normal
-  const opcional = { 'Modelo liviano del carrusel': 'no tiene (el carrusel usa el modelo normal)' };
-  return filas.map(([nombre, valor]) => `<li><span>${escapar(nombre)}</span> ${valor ? `<code>${escapar(valor)}</code>` : opcional[nombre] ? escapar(opcional[nombre]) : '<em>falta</em>'}</li>`).join('');
-}
 
 /** Los créditos de la canción (formato antiguo) se pasan a la lista de «qué hizo / quién» */
 function creditosComoLista(c) {
