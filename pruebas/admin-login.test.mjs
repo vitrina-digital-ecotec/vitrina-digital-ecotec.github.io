@@ -88,7 +88,9 @@ for (const ancho of [390, 1280]) {
     await pagina.fill('#clave', 'clave-buena');
     await pagina.click('#form-ingresar button[type="submit"]');
     await pagina.waitForURL(/admin\/index\.html/, { timeout: 15000 });
-    await pagina.waitForSelector('text=Conectado ✅ · 2 proyectos (1 publicados)', { timeout: 15000 });
+    await pagina.waitForSelector('#resumen .estado-conexion.ok', { timeout: 15000 });
+    assert.ok((await pagina.textContent('#resumen')).startsWith('Conectado · 2 proyectos (1 publicados)'));
+    assert.equal(await pagina.textContent('#salir'), 'Cerrar sesión');
     assert.equal(await pagina.textContent('#correo-admin'), 'dianapaolaespinoza2002@gmail.com');
     // Sin scroll horizontal
     assert.ok(await pagina.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no debe haber scroll horizontal');
@@ -121,5 +123,24 @@ test('una cuenta que no es admin no puede entrar', async () => {
   assert.match(await pagina.textContent('#aviso'), /no tiene permiso/);
   assert.match(pagina.url(), /login\.html/);
   assert.equal(registro.logout, 1, 'debe cerrar la sesión de esa cuenta');
+  await pagina.close();
+});
+
+test('ojo de la contraseña: ícono de línea que se tacha al mostrarla', async () => {
+  const pagina = await navegador.newPage();
+  await pagina.goto(servidor.url + 'admin/login.html');
+  const ojo = pagina.locator('.ver-clave[data-para="clave"]');
+  assert.equal(await ojo.getAttribute('aria-label'), 'Mostrar contraseña');
+  assert.equal(await ojo.locator('svg').count(), 1);
+  assert.ok(await ojo.locator('.ojo-tachado').isHidden());
+  await ojo.click();
+  assert.equal(await pagina.getAttribute('#clave', 'type'), 'text');
+  assert.equal(await ojo.getAttribute('aria-label'), 'Ocultar contraseña');
+  assert.ok(await ojo.locator('.ojo-tachado').isVisible());
+  // «Volver a la vitrina» sin subrayado hasta pasar el mouse
+  const volver = pagina.locator('.login-pie .enlace');
+  assert.match(await volver.evaluate(e => getComputedStyle(e).textDecorationLine), /none/);
+  await volver.hover();
+  assert.match(await volver.evaluate(e => getComputedStyle(e).textDecorationLine), /underline/);
   await pagina.close();
 });

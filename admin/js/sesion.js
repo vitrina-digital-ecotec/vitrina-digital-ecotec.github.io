@@ -36,7 +36,7 @@ export async function exigirAdmin() {
   return session;
 }
 
-let saliendo = false;      // «Salir» ya manda al login con su mensaje: el aviso de arriba no debe repetirlo
+let saliendo = false;      // «Cerrar sesión» ya manda al login con su mensaje: el aviso de arriba no debe repetirlo
 export async function cerrarSesion() {
   saliendo = true;
   await supabase.auth.signOut();

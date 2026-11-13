@@ -38,7 +38,7 @@
       <label for="clave">Contraseña</label>
       <div class="campo-clave">
         <input id="clave" type="password" autocomplete="current-password" required>
-        <button type="button" class="ver-clave" data-para="clave" aria-label="Mostrar la contraseña" aria-pressed="false">👁</button>
+        <button type="button" class="ver-clave" data-para="clave" aria-label="Mostrar contraseña" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/><path class="ojo-tachado" d="M4 4l16 16"/></svg></button>
       </div>
       <button class="boton-panel principal" type="submit">Ingresar</button>
       <button class="enlace" type="button" id="ir-olvido">¿Olvidaste tu contraseña?</button>
@@ -59,14 +59,14 @@
       <label for="nueva">Contraseña nueva</label>
       <div class="campo-clave">
         <input id="nueva" type="password" autocomplete="new-password" required minlength="12">
-        <button type="button" class="ver-clave" data-para="nueva" aria-label="Mostrar la contraseña" aria-pressed="false">👁</button>
+        <button type="button" class="ver-clave" data-para="nueva" aria-label="Mostrar contraseña" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/><path class="ojo-tachado" d="M4 4l16 16"/></svg></button>
       </div>
       <label for="nueva-2">Repítela</label>
       <input id="nueva-2" type="password" autocomplete="new-password" required minlength="12">
       <button class="boton-panel principal" type="submit">Guardar contraseña</button>
     </form>
 
-    <p class="login-pie"><a href="../index.html">← Volver a la vitrina</a></p>
+    <p class="login-pie"><a class="enlace" href="../index.html"><span aria-hidden="true">←</span> Volver a la vitrina</a></p>
   </main>
 
   <script type="module">
@@ -97,7 +97,7 @@
     const motivos = {
       'sin-permiso': 'Esta cuenta no tiene permiso para editar la vitrina. Pide a un administrador que agregue tu correo.',
       'sin-conexion': 'No se pudo conectar con Supabase. Revisa tu internet o si el proyecto está pausado.',
-      'salio': 'Cerraste la sesión.'
+      'salio': 'Cerraste sesión correctamente.'
     };
     const motivo = new URLSearchParams(location.search).get('motivo');
     if (motivos[motivo]) avisar(motivos[motivo], motivo === 'salio' ? 'ok' : 'error');
@@ -108,7 +108,7 @@
       const ver = campo.type === 'password';
       campo.type = ver ? 'text' : 'password';
       b.setAttribute('aria-pressed', String(ver));
-      b.setAttribute('aria-label', ver ? 'Ocultar la contraseña' : 'Mostrar la contraseña');
+      b.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña');
     }));
 
     // ¿Llegó desde el correo de «cambiar contraseña»?

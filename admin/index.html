@@ -28,7 +28,7 @@
       <div class="panel-usuario">
         <span class="panel-correo" id="correo-admin"></span>
         <a class="boton-panel claro" href="../index.html" target="_blank" rel="noopener">Ver la vitrina ↗</a>
-        <button class="boton-panel claro" type="button" id="salir">Salir</button>
+        <button class="boton-panel claro" type="button" id="salir">Cerrar sesión</button>
       </div>
     </div>
     <h1>Panel del docente</h1>
@@ -67,6 +67,7 @@
     import { supabase, exigirAdmin, cerrarSesion } from './js/sesion.js';
 
     const $ = (id) => document.getElementById(id);
+    const plural = (n, palabra) => `${n} ${palabra}${n === 1 ? '' : 's'}`;
     const sesion = await exigirAdmin();          // sin sesión de admin, la página no pasa de aquí
     document.body.classList.remove('verificando');
     $('verificando').hidden = true;
@@ -98,12 +99,13 @@
     // ---------- Resumen: confirma que la sesión de admin ve todo (también lo no publicado) ----------
     const { data: proyectos, error } = await supabase.from('proyectos').select('id, publicado, actualizado').order('orden');
     if (error) {
-      $('resumen').textContent = 'No se pudieron leer los proyectos. Revisa tu internet o si Supabase está pausado.';
+      $('resumen').innerHTML = '<strong class="estado-conexion error">Sin conexión</strong> · No se pudieron leer los proyectos. Revisa tu internet o si Supabase está pausado.';
     } else {
       const publicados = proyectos.filter(p => p.publicado).length;
       const ultimo = proyectos.map(p => p.actualizado).sort().at(-1);
-      $('resumen').textContent = `Conectado ✅ · ${proyectos.length} proyectos (${publicados} publicados)` +
-        (ultimo ? ` · último cambio: ${new Date(ultimo).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}` : '');
+      $('resumen').innerHTML = '<strong class="estado-conexion ok">Conectado</strong>';
+      $('resumen').append(` · ${plural(proyectos.length, 'proyecto')} (${plural(publicados, 'publicado')})` +
+        (ultimo ? ` · último cambio: ${new Date(ultimo).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}` : ''));
     }
   </script>
 </body>
