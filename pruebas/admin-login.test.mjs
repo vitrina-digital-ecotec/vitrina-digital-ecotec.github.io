@@ -89,7 +89,7 @@ for (const ancho of [390, 1280]) {
     await pagina.click('#form-ingresar button[type="submit"]');
     await pagina.waitForURL(/admin\/index\.html/, { timeout: 15000 });
     await pagina.waitForSelector('#resumen .estado-conexion.ok', { timeout: 15000 });
-    assert.ok((await pagina.textContent('#resumen')).startsWith('Conectado · 2 proyectos (1 publicados)'));
+    assert.ok((await pagina.textContent('#resumen')).startsWith('Conectado · 2 proyectos (1 publicado)'));
     assert.equal(await pagina.textContent('#salir'), 'Cerrar sesión');
     assert.equal(await pagina.textContent('#correo-admin'), 'dianapaolaespinoza2002@gmail.com');
     // Sin scroll horizontal
