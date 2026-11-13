@@ -22,21 +22,21 @@ export function iniciarAjustes(raiz) {
     <form class="tarjeta-panel" id="form-ar" novalidate>
       <h3>Realidad aumentada de las maquetas</h3>
       <div class="campo">
-        <label class="interruptor"><input type="checkbox" role="switch" name="arPropia" ${configuracion.arPropia !== false ? 'checked' : ''}><span class="interruptor-pista" aria-hidden="true"></span> Usar la AR propia (recomendado)</label>
-        <p class="ayuda">Encendida: tutorial, botones de girar y tamaño, «Ver interior» y «Colocar aquí». Apagada: la AR estándar de Google (más simple). Apágala solo si la propia da problemas en algún celular.</p>
+        <label class="interruptor"><input type="checkbox" role="switch" name="arPropia" ${configuracion.arPropia !== false ? 'checked' : ''}><span class="interruptor-pista" aria-hidden="true"></span> Usar la realidad aumentada completa de la vitrina (recomendado)</label>
+        <p class="ayuda">Encendida: tutorial, botones para girar y cambiar el tamaño, «Ver interior» y «Colocar aquí». Apagada: la realidad aumentada básica de Google, más simple. Apágala solo si la completa da problemas en algún celular.</p>
       </div>
       <button type="submit" class="boton-panel principal">Guardar</button>
     </form>
 
     <section class="tarjeta-panel">
-      <h3>Respaldo (Plan B)</h3>
-      <p class="ayuda">Si Supabase no responde, la vitrina muestra el archivo <code>data/proyectos.json</code> del sitio. Para que ese respaldo tenga tus últimos cambios:</p>
+      <h3>Copia de respaldo</h3>
+      <p class="ayuda">Si la base de datos no responde (sin internet o en pausa), la vitrina muestra una copia guardada en el sitio para no quedar en blanco. Para que esa copia tenga tus últimos cambios:</p>
       <ol class="ayuda pasos">
-        <li>Descarga el respaldo con este botón.</li>
+        <li>Descarga la copia con el botón de abajo.</li>
         <li>En GitHub, entra a la carpeta <code>data</code> del repositorio → <strong>Add file</strong> → <strong>Upload files</strong>.</li>
-        <li>Sube el archivo descargado (se llama <code>proyectos.json</code>, reemplaza al anterior) → <strong>Commit changes</strong>.</li>
+        <li>Sube el archivo descargado (se llama <code>proyectos.json</code> y reemplaza al anterior) → <strong>Commit changes</strong>.</li>
       </ol>
-      <button type="button" class="boton-panel" id="descargar-respaldo">Descargar respaldo (proyectos.json)</button>
+      <button type="button" class="boton-panel" id="descargar-respaldo">Descargar la copia de respaldo</button>
     </section>`;
 
   // Se pone con .value (no en el HTML) para no tener que escapar nada
@@ -65,6 +65,6 @@ export function iniciarAjustes(raiz) {
     enlace.download = 'proyectos.json';
     enlace.click();
     setTimeout(() => URL.revokeObjectURL(enlace.href), 1000);
-    avisar('Respaldo descargado. Súbelo a GitHub siguiendo los pasos.');
+    avisar('Copia descargada. Súbela a GitHub siguiendo los pasos.');
   });
 }

@@ -100,7 +100,7 @@ test('nuevo proyecto: dirección automática, empieza oculto y no se publica sin
   // Publicar desde la lista también lo impide
   await fila(pagina, 'mi-nivel-nandu').locator('[data-accion="publicar"]').click();
   await pagina.waitForSelector('#aviso-flotante[data-tipo="error"]');
-  assert.match(await pagina.textContent('#aviso-flotante'), /Para publicarlo falta/);
+  assert.match(await pagina.textContent('#aviso-flotante'), /Para publicarlo falta.*discapacidad visual/);
   assert.ok(await pagina.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'sin scroll horizontal en 390 px');
   await contexto.close();
 });

@@ -121,7 +121,7 @@
       if (inicial) abrir(inicial);
     } catch (error) {
       console.error(error);
-      $('resumen').innerHTML = '<strong class="estado-conexion error">Sin conexión</strong> · No se pudieron leer los proyectos. Revisa tu internet o si Supabase está pausado.';
+      $('resumen').innerHTML = '<strong class="estado-conexion error">Sin conexión</strong> · No se pudieron leer los proyectos. Revisa tu internet o si la base de datos está en pausa.';
       $('seccion-proyectos').innerHTML = '<p class="pendiente">No se pudo cargar el contenido. Recarga la página en un momento.</p>';
     }
   </script>

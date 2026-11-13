@@ -482,7 +482,8 @@ En el carrusel y en la AR se veían rayas, manchas blancas y parpadeo en las par
 1. **17 piezas duplicadas** en el mismo lugar (una con material y otra sin): parpadeaban (z-fighting). Se quita la copia sin material.
 2. **Piezas sin material** (glTF las dibuja metálicas) → «aluminio». Los «aluminio» tenían **metalicidad 3** (el máximo es 1) → 0, que es como ya se veían en la AR.
 3. **Muros y mostrador solo se veían bien con «doble cara»**, y la AR propia dibuja un solo lado (es más rápida): en la AR el muro de las puertas desaparecía y quedaban flotando la franja de damero, las puertas y los marcos. Ahora cada cara tiene su copia de atrás como geometría real (lo mismo que hace «doble cara») y ningún material usa «doble cara»: se ve igual en el carrusel y en la AR, sin caras superpuestas.
-4. Se quitan 1404 caras ocultas pegadas al muro o al piso (espaldas de molduras, bases de muebles).
+4. Se quitan las caras pegadas al muro o al piso (espaldas de molduras, bases de muebles y **la punta de la barra que toca el muro de las puertas**: con su copia de atrás se veía como un rectángulo rosado a través del muro, desde afuera). Se respetan los vidrios de las ventanas redondas de la puerta.
+4b. Del lado de afuera, cada muro es **un solo rectángulo** 3 mm más afuera (el original tenía uniones mal calzadas por donde se asomaban bordes de la barra). Los 3 mm son menos de lo que sobresalen la puerta (17 mm) y su vidrio (4,4 mm).
 5. **Optimización:** sin simplificar (tampoco la versión del carrusel), texturas WebP de más calidad (92) y la **paleta de colores sin pérdida** (en `optimizar.mjs`, para todos los modelos: la compresión con pérdida mezclaba los colores vecinos de la paleta).
 6. **AR propia:** filtro anisotrópico ×4 en las texturas (el piso y las franjas vistos de costado no se ven borrosos).
 

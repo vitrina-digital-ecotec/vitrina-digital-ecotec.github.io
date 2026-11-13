@@ -56,7 +56,7 @@ export function mensajeDeError(error) {
   if (m.includes('password should be') || m.includes('weak')) return 'La contraseña es muy débil: usa al menos 12 caracteres, con letras, números y algún símbolo.';
   if (m.includes('same') && m.includes('password')) return 'La contraseña nueva debe ser distinta de la anterior.';
   if (m.includes('failed to fetch') || m.includes('network') || m.includes('load failed')) {
-    return 'No se pudo conectar con Supabase. Revisa tu internet o si el proyecto está pausado (ver supabase/CONFIGURAR.md).';
+    return 'No se pudo conectar con la base de datos. Revisa tu internet. Si sigue igual, puede que la base de datos esté en pausa (la guía de configuración explica cómo reactivarla).';
   }
   return 'Algo salió mal. Intenta de nuevo en un momento.';
 }

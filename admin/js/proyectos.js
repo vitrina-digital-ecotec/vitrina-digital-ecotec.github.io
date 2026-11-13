@@ -143,7 +143,7 @@ function faltaParaPublicar(d, carrera) {
     if (!d.video) falta.push('el video');
   } else {
     if (!d.ar?.modelo) falta.push('el modelo 3D');
-    if (!d.ar?.alt?.trim()) falta.push('la descripción del modelo para lectores de pantalla');
+    if (!d.ar?.alt?.trim()) falta.push('una descripción breve del modelo (la escuchan las personas con discapacidad visual)');
   }
   return falta;
 }
@@ -175,9 +175,9 @@ function abrirEditor(fila) {
         ${campo('titulo', 'Título del proyecto', d.titulo, { requerido: true })}
         ${nuevo ? `
           <div class="campo">
-            <label for="f-id">Dirección del proyecto</label>
-            <div class="campo-prefijo"><span>proyecto.html?id=</span><input id="f-id" name="direccion" pattern="[a-z0-9-]+" spellcheck="false"></div>
-            <p class="ayuda">Se crea sola con el título. Solo letras minúsculas, números y guiones. Después no se puede cambiar.</p>
+            <label for="f-id">Nombre en la dirección web</label>
+            <input id="f-id" name="direccion" pattern="[a-z0-9-]+" spellcheck="false" aria-describedby="vista-direccion">
+            <p class="ayuda" id="vista-direccion">Se crea solo con el título. Solo letras minúsculas, números y guiones. Después no se puede cambiar.</p>
           </div>` : ''}
         <div class="campo">
           <label for="f-carrera">Carrera</label>
@@ -249,7 +249,7 @@ function abrirEditor(fila) {
       <fieldset class="bloque" data-solo="maqueta escenario">
         <legend>Realidad aumentada</legend>
         ${campo('escala', 'Escala', d.ar?.escala, { ayuda: 'Por ejemplo: 1:25 (la maqueta es 25 veces más chica que la obra real).' })}
-        ${campo('alt', 'Descripción del modelo (para lectores de pantalla)', d.ar?.alt, { area: true, ayuda: 'Una frase que cuente qué se ve. La leen las personas ciegas.' })}
+        ${campo('alt', 'Descripción breve del modelo', d.ar?.alt, { area: true, ayuda: 'Una frase que cuente qué se ve. La escuchan las personas con discapacidad visual.' })}
         <h3 class="subtitulo">Botón «Ver interior»</h3>
         <p class="ayuda">Cada toque al botón corta el modelo a una altura (por ejemplo, para quitar el techo). La altura se mide en centímetros desde la base de la maqueta. Si no agregas ninguno, el botón no aparece.</p>
         ${campo('texto-completa', 'Texto del botón con el modelo completo', d.ar?.textoCompleta ?? 'Completa')}
@@ -260,7 +260,7 @@ function abrirEditor(fila) {
       <fieldset class="bloque" data-solo="video">
         <legend>Video en realidad aumentada</legend>
         ${campo('escala-video', 'Tamaño de la pantalla', d.ar?.escala ?? '60 cm de ancho')}
-        ${campo('alt-video', 'Descripción de la pantalla (para lectores de pantalla)', d.ar?.alt ?? 'Televisor retro con una pantalla de cine 16:9 que reproduce el video del proyecto', { area: true })}
+        ${campo('alt-video', 'Descripción breve de la pantalla', d.ar?.alt ?? 'Televisor retro con una pantalla de cine que reproduce el video del proyecto', { area: true, ayuda: 'La escuchan las personas con discapacidad visual.' })}
         <fieldset class="campo">
           <legend>Modos que puede elegir el visitante</legend>
           ${Object.entries(MODOS_VIDEO).map(([id, nombre]) => `
@@ -282,7 +282,7 @@ function abrirEditor(fila) {
 
       <fieldset class="bloque">
         <legend>Archivos</legend>
-        <p class="ayuda">Las imágenes, el modelo 3D, el video y los subtítulos se suben desde aquí en la próxima actualización del panel (parte 4). Por ahora se ven los actuales:</p>
+        <p class="ayuda">Las imágenes, el modelo 3D, el video y los subtítulos se van a subir desde aquí en la próxima actualización del panel. Por ahora se muestran los que ya tiene:</p>
         <ul class="archivos-actuales">${listaArchivos(d)}</ul>
       </fieldset>
 
@@ -305,7 +305,9 @@ function abrirEditor(fila) {
     // La dirección se arma sola con el título, hasta que la persona la cambie a mano
     let idAMano = false;
     $('#f-id', form).addEventListener('input', () => { idAMano = true; });
-    $('#f-titulo', form).addEventListener('input', (e) => { if (!idAMano) $('#f-id', form).value = idLibre(slug(e.target.value)); });
+    const mostrarDireccion = () => { $('#vista-direccion', form).textContent = `Quedará así: …/proyecto.html?id=${$('#f-id', form).value || '…'}. Se crea solo con el título; usa solo letras minúsculas, números y guiones. Después no se puede cambiar.`; };
+    $('#f-titulo', form).addEventListener('input', (e) => { if (!idAMano) $('#f-id', form).value = idLibre(slug(e.target.value)); mostrarDireccion(); });
+    $('#f-id', form).addEventListener('input', mostrarDireccion);
   }
   $('#usar-periodo', form).addEventListener('click', () => { $('#f-periodo', form).value = estado.ajustes.periodoActual ?? ''; sucio = true; });
   form.addEventListener('click', (e) => {

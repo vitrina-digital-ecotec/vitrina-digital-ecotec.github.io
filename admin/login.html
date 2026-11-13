@@ -96,7 +96,7 @@
     // Por qué se llegó aquí (lo pone el panel al mandar al login)
     const motivos = {
       'sin-permiso': 'Esta cuenta no tiene permiso para editar la vitrina. Pide a un administrador que agregue tu correo.',
-      'sin-conexion': 'No se pudo conectar con Supabase. Revisa tu internet o si el proyecto está pausado.',
+      'sin-conexion': 'No se pudo conectar con la base de datos. Revisa tu internet o si la base de datos está en pausa.',
       'salio': 'Cerraste sesión correctamente.'
     };
     const motivo = new URLSearchParams(location.search).get('motivo');

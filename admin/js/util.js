@@ -74,9 +74,9 @@ export function confirmar({ titulo, texto, boton = 'Aceptar', peligro = false })
 /** Traduce los errores de la base de datos a frases simples */
 export function errorAlGuardar(error) {
   const m = `${error?.message ?? error ?? ''}`.toLowerCase();
-  if (m.includes('duplicate key') || m.includes('already exists')) return 'Ya existe un elemento con esa dirección (id). Cambia el título o el id.';
+  if (m.includes('duplicate key') || m.includes('already exists')) return 'Ya existe un proyecto con ese nombre en la dirección web. Cambia una palabra del título.';
   if (m.includes('row-level security') || m.includes('permission') || m.includes('jwt')) return 'Tu sesión venció o no tienes permiso. Cierra sesión y vuelve a entrar.';
   if (m.includes('foreign key')) return 'Hay proyectos que usan esta carrera: muévelos a otra carrera antes de borrarla.';
-  if (m.includes('failed to fetch') || m.includes('network')) return 'Sin conexión con Supabase. Revisa tu internet e intenta de nuevo.';
+  if (m.includes('failed to fetch') || m.includes('network')) return 'Sin conexión con la base de datos. Revisa tu internet e intenta de nuevo.';
   return 'No se pudo guardar. Intenta de nuevo en un momento.';
 }
