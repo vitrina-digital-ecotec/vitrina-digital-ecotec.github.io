@@ -125,6 +125,7 @@ export function crearARPropia({ proyecto, capa, compartidos = [], alTocarPunto, 
     colocarAqui: $('#ar-colocar-aqui', capa)
   };
   el.interior.hidden = cortes.length === 0;   // «Ver interior» solo si el modelo tiene cortes
+  marcarInterior();                           // texto inicial (el admin puede cambiar «Completa» en el panel)
 
   // ---------------------------------------------------------
   // Precarga: se baja el modelo, se arma la escena y se preparan shaders y texturas
@@ -645,7 +646,7 @@ export function crearARPropia({ proyecto, capa, compartidos = [], alTocarPunto, 
   });
 
   function marcarInterior() {
-    const nombres = ['Completa', ...cortes.map(c => c.nombre)];
+    const nombres = [proyecto.ar.textoCompleta || 'Completa', ...cortes.map(c => c.nombre)];
     el.interior.querySelector('.ar-boton-texto').textContent = nombres[nivelInterior];
     el.interior.setAttribute('aria-label', `Ver interior: ${nombres[nivelInterior]}`);
     el.interior.setAttribute('aria-pressed', String(nivelInterior > 0));

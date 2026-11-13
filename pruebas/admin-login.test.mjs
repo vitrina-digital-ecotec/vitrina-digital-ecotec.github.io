@@ -49,7 +49,12 @@ async function fingirSupabase(pagina, { admins = ['dianapaolaespinoza2002@gmail.
     if (url.pathname === '/auth/v1/logout') { registro.logout++; return r.fulfill({ status: 204 }); }
     if (url.pathname === '/rest/v1/rpc/es_admin') return json(admins.includes(correoActual));
     if (url.pathname === '/rest/v1/proyectos') {
-      return json([{ id: 'casa-moderna', publicado: true, actualizado: '2026-11-13T15:00:00Z' }, { id: 'oculto', publicado: false, actualizado: '2026-11-12T15:00:00Z' }]);
+      return json([
+        { id: 'casa-moderna', carrera: 'arquitectura', orden: 10, publicado: true, actualizado: '2026-11-13T15:00:00Z', datos: { titulo: 'Casa Moderna', tipo: 'maqueta' } },
+        { id: 'oculto', carrera: 'arquitectura', orden: 20, publicado: false, actualizado: '2026-11-12T15:00:00Z', datos: { titulo: 'Oculto', tipo: 'maqueta' } }]);
+    }
+    if (url.pathname === '/rest/v1/carreras') {
+      return json([{ id: 'arquitectura', orden: 1, publicado: true, datos: { nombre: 'Arquitectura', nombreCorto: 'Arquitectura', icono: 'arquitectura' } }]);
     }
     return json([]);
   });

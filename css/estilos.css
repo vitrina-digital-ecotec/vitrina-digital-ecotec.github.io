@@ -390,3 +390,12 @@ a.chip-claro:hover { background: var(--hielo); }
   background: var(--blanco); color: var(--azul); font: 700 22px/1 var(--texto); display: grid; place-items: center;
 }
 body.visor-abierto { overflow: hidden; }
+
+/* Vista previa del docente (js/datos.js): solo la ve quien entró al panel */
+.barra-previa {
+  position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 100;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px;
+  width: max-content; max-width: calc(100% - 24px); padding: 10px 14px; border-radius: 16px;
+  background: #FFF4D6; color: #5C3E00; font-size: 13px; box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+}
+.barra-previa button { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1.5px solid currentColor; background: transparent; color: inherit; font: 600 13px var(--texto); cursor: pointer; }

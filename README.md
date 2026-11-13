@@ -487,3 +487,13 @@ En el carrusel y en la AR se veían rayas, manchas blancas y parpadeo en las par
 6. **AR propia:** filtro anisotrópico ×4 en las texturas (el piso y las franjas vistos de costado no se ven borrosos).
 
 Resultado: `cafeteria.glb` 407 KB y `cafeteria-hero.glb` 397 KB, 8 llamadas de dibujo. Los cuadros propios (disco, malteada y estrella) siguen igual.
+
+### Panel de proyectos (parte 3) — `admin/js/`
+- **Proyectos** (`proyectos.js`): lista en el orden del carrusel, con filtro por carrera. Cada proyecto: **Editar**, **Ver en el sitio** (vista previa), **Publicar/Ocultar**, **↑ ↓** (orden del carrusel) y **Eliminar** (con confirmación). **+ Nuevo proyecto** de cualquier tipo (maqueta, escenario o video): la dirección (`id`) se arma sola con el título y empieza **oculto**.
+- **Editor por secciones:** lo básico (título, carrera, tipo, estudiante, materia, periodo con «Usar el periodo actual», ubicación, descripción), **etiqueta «PROYECTO DE EJEMPLO»** (sí/no), **créditos** (lista «qué hizo / quién»), **modelo 3D de otra persona** (autor, sitio, enlace, licencia, adaptación, cambios), **AR** (escala, descripción para lectores de pantalla y los botones de **«Ver interior»**: texto y altura en cm de cada corte, y el texto del modelo completo `ar.textoCompleta`), **video** (modos Televisor / Sin televisor / 360° y modo inicial) y **letra** por secciones.
+- Lo que el formulario no toca (puntos, asistente, galería, rutas de archivos, cámara) **se conserva** al guardar.
+- **No se puede publicar** un proyecto sin título, portada y modelo 3D (o video) y la descripción del modelo: el panel dice qué falta.
+- **Carreras** (`carreras.js`): nombre, nombre corto, descripción, ícono, orden y si se ve. No se borra una carrera con proyectos.
+- **Ajustes** (`ajustes.js`): periodo actual, interruptor de la **AR propia** y **Descargar respaldo**: un `proyectos.json` con lo publicado para actualizar el Plan B en GitHub (los pasos están en el panel).
+- **Vista previa** (`js/datos.js`): `proyecto.html?id=…&vista=previa` muestra también lo oculto **solo** si ese navegador tiene la sesión del admin (usa su token; RLS lo permite). Aparece una barra amarilla con «Salir de la vista previa». Lo oculto no se guarda en la copia local.
+- Prueba: `admin-proyectos.test.mjs`, con el Supabase fingido de `supabase-falso.mjs`.

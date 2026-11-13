@@ -37,6 +37,10 @@ async function desdeSupabase() {
   const encabezados = { apikey: SUPABASE_CLAVE_PUBLICA };
   // La clave antigua («anon», empieza con eyJ) también va como token; la nueva (sb_publishable_…) no.
   if (SUPABASE_CLAVE_PUBLICA.startsWith('eyJ')) encabezados.Authorization = `Bearer ${SUPABASE_CLAVE_PUBLICA}`;
+  // Vista previa del docente: con su sesión, la base de datos también le entrega lo oculto (RLS)
+  const token = enVistaPrevia() ? tokenDelAdmin() : null;
+  if (token) encabezados.Authorization = `Bearer ${token}`;
+  const soloPublicado = token ? '' : '&publicado=eq.true';
   const pedir = async (ruta) => {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/${ruta}`, { headers: encabezados, signal: control.signal, cache: 'no-cache' });
     if (!r.ok) throw new Error(`Supabase ${r.status} en ${ruta}`);
@@ -45,8 +49,8 @@ async function desdeSupabase() {
   try {
     const [ajustes, carreras, proyectos] = await Promise.all([
       pedir('ajustes?select=clave,valor'),
-      pedir('carreras?select=id,orden,datos&publicado=eq.true&order=orden'),
-      pedir('proyectos?select=id,carrera,datos&publicado=eq.true&order=orden')
+      pedir(`carreras?select=id,orden,datos${soloPublicado}&order=orden`),
+      pedir(`proyectos?select=id,carrera,datos${soloPublicado}&order=orden`)
     ]);
     if (!proyectos.length) throw new Error('Supabase no tiene proyectos publicados');
     const ajuste = Object.fromEntries(ajustes.map(a => [a.clave, a.valor]));
@@ -56,11 +60,48 @@ async function desdeSupabase() {
       carreras: carreras.map(c => ({ id: c.id, orden: c.orden, ...c.datos })),
       proyectos: proyectos.map(p => ({ id: p.id, carrera: p.carrera, ...p.datos }))
     };
+    if (token) { mostrarBarraPrevia(); return { ...datos, _origen: 'vista-previa' }; }   // lo oculto no va a la copia local
     try { localStorage.setItem(COPIA_LOCAL, JSON.stringify(datos)); } catch { /* sin espacio o bloqueado: no importa */ }
     return { ...datos, _origen: 'supabase' };
   } finally {
     clearTimeout(reloj);
   }
+}
+
+// ---------------------------------------------------------
+// Vista previa del docente: el panel abre «proyecto.html?id=…&vista=previa».
+// Se recuerda mientras dure la pestaña (así también funciona «Ver en AR»).
+// Sin una sesión de admin en este navegador no cambia nada.
+// ---------------------------------------------------------
+const PREVIA = 'vitrina-vista-previa';
+function enVistaPrevia() {
+  try {
+    if (new URLSearchParams(location.search).get('vista') === 'previa') sessionStorage.setItem(PREVIA, '1');
+    return sessionStorage.getItem(PREVIA) === '1';
+  } catch { return false; }
+}
+
+/** Token de la sesión que guardó el panel (supabase-js lo guarda como «sb-<proyecto>-auth-token») */
+function tokenDelAdmin() {
+  try {
+    const proyecto = new URL(SUPABASE_URL).hostname.split('.')[0];
+    const sesion = JSON.parse(localStorage.getItem(`sb-${proyecto}-auth-token`));
+    return sesion?.access_token && sesion.expires_at * 1000 > Date.now() ? sesion.access_token : null;
+  } catch { return null; }
+}
+
+function mostrarBarraPrevia() {
+  const barra = document.createElement('div');
+  barra.className = 'barra-previa';
+  barra.setAttribute('role', 'status');
+  barra.innerHTML = '<span>Vista previa del docente: también ves los proyectos ocultos.</span> <button type="button">Salir de la vista previa</button>';
+  barra.querySelector('button').addEventListener('click', () => {
+    try { sessionStorage.removeItem(PREVIA); } catch { /* nada */ }
+    const url = new URL(location.href);
+    url.searchParams.delete('vista');
+    location.replace(url);
+  });
+  document.body.append(barra);
 }
 
 function copiaLocal() {

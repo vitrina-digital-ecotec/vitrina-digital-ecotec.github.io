@@ -45,18 +45,9 @@
       <p class="resumen-estado" id="resumen" role="status">Conectando…</p>
     </section>
 
-    <section class="seccion" id="seccion-proyectos" role="tabpanel" aria-labelledby="tab-proyectos">
-      <h2>Proyectos</h2>
-      <p class="pendiente">Aquí vas a crear, editar, ocultar y borrar proyectos (parte 3).</p>
-    </section>
-    <section class="seccion" id="seccion-carreras" role="tabpanel" aria-labelledby="tab-carreras" hidden>
-      <h2>Carreras</h2>
-      <p class="pendiente">Nombre, descripción, ícono y orden de cada carrera (parte 3).</p>
-    </section>
-    <section class="seccion" id="seccion-ajustes" role="tabpanel" aria-labelledby="tab-ajustes" hidden>
-      <h2>Ajustes</h2>
-      <p class="pendiente">Periodo actual y AR propia (parte 3).</p>
-    </section>
+    <section class="seccion" id="seccion-proyectos" role="tabpanel" aria-labelledby="tab-proyectos"><p class="pendiente">Cargando…</p></section>
+    <section class="seccion" id="seccion-carreras" role="tabpanel" aria-labelledby="tab-carreras" hidden></section>
+    <section class="seccion" id="seccion-ajustes" role="tabpanel" aria-labelledby="tab-ajustes" hidden></section>
     <section class="seccion" id="seccion-metricas" role="tabpanel" aria-labelledby="tab-metricas" hidden>
       <h2>Métricas</h2>
       <p class="pendiente">Visitas, KPIs y exportar CSV (parte 7).</p>
@@ -64,7 +55,12 @@
   </main>
 
   <script type="module">
-    import { supabase, exigirAdmin, cerrarSesion } from './js/sesion.js';
+    import { exigirAdmin, cerrarSesion } from './js/sesion.js';
+    import { estado, cargarTodo } from './js/datos-panel.js';
+    import { iniciarProyectos, hayCambiosSinGuardar } from './js/proyectos.js';
+    import { iniciarCarreras } from './js/carreras.js';
+    import { iniciarAjustes } from './js/ajustes.js';
+    import { confirmar } from './js/util.js';
 
     const $ = (id) => document.getElementById(id);
     const plural = (n, palabra) => `${n} ${palabra}${n === 1 ? '' : 's'}`;
@@ -72,17 +68,31 @@
     document.body.classList.remove('verificando');
     $('verificando').hidden = true;
     $('correo-admin').textContent = sesion.user.email;
-    $('salir').addEventListener('click', cerrarSesion);
+    $('salir').addEventListener('click', async () => {
+      if (hayCambiosSinGuardar() && !await confirmar({ titulo: '¿Cerrar sesión sin guardar?', texto: 'Los cambios del proyecto que estás editando se perderán.', boton: 'Cerrar sesión', peligro: true })) return;
+      cerrarSesion();
+    });
 
     // ---------- Pestañas (también con flechas del teclado; se recuerda en la dirección: #metricas) ----------
+    // Cada pestaña se vuelve a dibujar al abrirla, con los datos al día.
+    const dibujar = {
+      'tab-proyectos': () => iniciarProyectos($('seccion-proyectos')),
+      'tab-carreras': () => iniciarCarreras($('seccion-carreras')),
+      'tab-ajustes': () => iniciarAjustes($('seccion-ajustes'))
+    };
     const pestanas = [...document.querySelectorAll('[role="tab"]')];
-    function abrir(pestana, enfocar = false) {
+    let actual = $('tab-proyectos');
+    async function abrir(pestana, enfocar = false) {
+      if (pestana === actual) return;
+      if (hayCambiosSinGuardar() && !await confirmar({ titulo: '¿Salir sin guardar?', texto: 'Los cambios del proyecto que estás editando se perderán.', boton: 'Salir sin guardar', peligro: true })) return;
+      actual = pestana;
       pestanas.forEach(p => {
         const activa = p === pestana;
         p.setAttribute('aria-selected', String(activa));
         p.tabIndex = activa ? 0 : -1;
         $(p.getAttribute('aria-controls')).hidden = !activa;
       });
+      dibujar[pestana.id]?.();
       if (enfocar) pestana.focus();
       history.replaceState(null, '', `#${pestana.id.replace('tab-', '')}`);
     }
@@ -93,19 +103,26 @@
         if (salto) abrir(pestanas[(i + salto + pestanas.length) % pestanas.length], true);
       });
     });
-    const inicial = $(`tab-${location.hash.slice(1)}`);
-    if (inicial) abrir(inicial);
 
-    // ---------- Resumen: confirma que la sesión de admin ve todo (también lo no publicado) ----------
-    const { data: proyectos, error } = await supabase.from('proyectos').select('id, publicado, actualizado').order('orden');
-    if (error) {
-      $('resumen').innerHTML = '<strong class="estado-conexion error">Sin conexión</strong> · No se pudieron leer los proyectos. Revisa tu internet o si Supabase está pausado.';
-    } else {
-      const publicados = proyectos.filter(p => p.publicado).length;
-      const ultimo = proyectos.map(p => p.actualizado).sort().at(-1);
+    // ---------- Datos y resumen (se actualiza con cada cambio guardado) ----------
+    function resumen() {
+      const publicados = estado.proyectos.filter(p => p.publicado).length;
+      const ultimo = estado.proyectos.map(p => p.actualizado).sort().at(-1);
       $('resumen').innerHTML = '<strong class="estado-conexion ok">Conectado</strong>';
-      $('resumen').append(` · ${plural(proyectos.length, 'proyecto')} (${plural(publicados, 'publicado')})` +
+      $('resumen').append(` · ${plural(estado.proyectos.length, 'proyecto')} (${plural(publicados, 'publicado')})` +
         (ultimo ? ` · último cambio: ${new Date(ultimo).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}` : ''));
+    }
+    try {
+      await cargarTodo();
+      resumen();
+      document.addEventListener('panel:cambio', resumen);
+      dibujar['tab-proyectos']();
+      const inicial = $(`tab-${location.hash.slice(1)}`);
+      if (inicial) abrir(inicial);
+    } catch (error) {
+      console.error(error);
+      $('resumen').innerHTML = '<strong class="estado-conexion error">Sin conexión</strong> · No se pudieron leer los proyectos. Revisa tu internet o si Supabase está pausado.';
+      $('seccion-proyectos').innerHTML = '<p class="pendiente">No se pudo cargar el contenido. Recarga la página en un momento.</p>';
     }
   </script>
 </body>
